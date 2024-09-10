@@ -1,0 +1,95 @@
+* The Unit Programming Language
+
+The following is the specs for the Unit programming language, a lisp 
+dialect. We aim to target programs that are closer to metal, with 
+safety and flexibility in mind. This language is inspired by Clojure,
+Common Lisp, Scala and Odin. The goal is to create a language that 
+generally has enough speed to be able to accomplish real time 
+tasks such as terminal UI and desktop applications.
+
+This language will be fairly imperative, and has elements of 
+functional programming where it makes sense.
+
+The name Unit comes from the Scala `Unit` type, representing nothing.
+
+The following specs are work in progress and is not final.
+
+** syntax 
+
+  The Unit programming language has a syntax very similar to Clojure.
+  @code
+  (defmod main 
+    (:: inc [Num => Num])
+    (defn inc [n]
+      (+ 1 n))
+
+   (defn core []
+      (val x (i32 1))
+      (println (inc x))))
+  @end
+
+*** modules
+
+  @code
+  (defmod foo)
+  (defmod foo.bar) 
+  @end
+
+  The module system of Unit is similar to elixir's system. 
+
+  @code 
+  (defmod foo.bar 
+    (defn bar ...)) ;; ... is not valid syntax, but a placeholder
+
+  (defmod foo 
+    (alias [foo.bar bar])
+    (bar/bar ...))
+  @end
+
+  Modules are used similar to namespace, to address the issue of 
+  importing and mainly cyclic load dependency issue.
+
+  One may want to split a group of functions into multiple files:
+  @code 
+  ;; file A 
+  (defmod foo
+    (val x (i32 1))
+
+    (defn baz []
+      (some-util))
+  
+  ;; file B
+  (defmod bar 
+    (defn do-stuff-with-x ...)
+    (defn some-util ...))
+  @end
+
+  Where file A wants to access items from file B, and the other way around.
+  With this module system, it is fairly simple to do just that.
+  Each item in the modules are technically global.
+
+*** type system 
+
+  Type system of Unit heavily utilizes protocols:
+
+  @code 
+  (defprotocol Animal
+    (:: talk [=> String]))
+  @end
+
+  In the above, we define a protocol named `Animal`, where in order to be 
+  an `Animal`, one must implement the `talk` function.
+
+  @code 
+  (defstruct Cat [Talk]
+    [:name String]
+    (talk [this]
+      "meow"))
+
+  (:: play [(Animal T) => T])
+  (defn play [n] 
+    (talk n)
+    ...)
+
+  (play (Cat {:name "joe"})) ;; returns a Cat
+  @end
