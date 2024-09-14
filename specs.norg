@@ -19,7 +19,7 @@ The following specs are work in progress and is not final.
   The Unit programming language has a syntax very similar to Clojure.
 
   @code
-  (: inc [Num => Num])
+  (: inc [Num -> Num])
   (defn inc [n]
     (+ 1 n))
 
@@ -28,7 +28,7 @@ The following specs are work in progress and is not final.
     (println (inc x)))
   @end
 
-*** namespace
+** namespace
 
   At the start of a file, a namespace must be provided. This system 
   is very similar to Clojure's.
@@ -63,3 +63,120 @@ The following specs are work in progress and is not final.
   As `f` is directly imported, one does not need to write the 
   namespace. One can call functions based on the raw name 
   of the namespace or the alias.
+
+** type system
+  
+  The type system of Unit is like a tree.
+
+  @code
+  Any/
+    ├── Num/
+    │   ├── AutoNum
+    │   ├── Integer/
+    │   │    ├── Signed/
+    │   │    │   ├── i128
+    │   │    │   ├── i64
+    │   │    │   ├── i32 
+    │   │    │   ├── i16
+    │   │    │   └── i8 
+    │   │    └── Unsigned/
+    │   │        ├── u128
+    │   │        ├── u64
+    │   │        ├── u32
+    │   │        ├── i16
+    │   │        └── u8
+    │   └── Float/
+    │        ├── f64
+    │        ├── f32
+    │        └── f16
+    ├── Coll/
+    │   ├── List
+    │   ├── Vector
+    │   ├── Map
+    │   └── Queue
+    ├── String
+    ├── Bool
+    └── Atom
+  @end
+
+  Each item in the tree with a `/` is a protocol. Each protocol 
+  is a set of generic functions. To be a child of the protocol, 
+  one must implement all the functions specified in it.
+
+  @code
+  (defprotocol Animal
+    (: talk [this -> String])
+    (: move [this -> Vector]))
+
+  (defstruct Cat [Animal]
+    {:name String
+     :age f16
+     :pos (Vector i8)}
+
+    (talk [this]
+      "meow")
+
+    (move [this]
+      (let [pos (:pos this)]
+        [(first pos) (succ (sec pos))])))
+
+  (def paul
+    (Cat {:name "paul"
+          :age 0.5
+          :pos [1 1]}))
+
+  (talk paul)
+  @end
+
+  In order to implement a protocol for an already defined structure,
+
+  @code 
+  (defstruct Cat []
+    {:name String
+     :age f16
+     :pos (Vector i8)})
+
+  (attach-protocol Cat 
+    Animal 
+    (talk [this] (todo "impl this"))
+    (move [this] (todo "impl this")))
+  @end
+
+  To use a protocol as a type:
+
+  @code
+  (: foo [Animal -> String])
+  (defn foo [a] (todo "impl this"))
+  @end
+
+  Said function is polymorphic and can take any `Animal`.
+
+*** carrier type
+
+  Carrier types are a type that takes in another type.
+
+  @code
+  (defstruct Box
+    #{T U}
+    {:value T
+     :value2 U})
+
+  (Box i8 String
+    {:value 1
+     :value2 "hi"})
+
+  (Box {T i8 
+        U String}
+    {:value 1 
+     :value2 "hi"})
+  @end
+
+*** generic
+  
+  Generics are used for carriers that you do not know the inner type of.
+
+  @code 
+  (: extract [T => (Box T) -> T])
+  (defn extract [box]
+    (:value box))
+  @end
