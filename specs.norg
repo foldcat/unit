@@ -51,7 +51,7 @@ The following specs are work in progress and is not final.
     (:import [foo.bar :as bar :refer [f]]))
   @end
 
-  In the above case, we impoet `foo.bar`, give it an alias 
+  In the above case, we import `foo.bar`, give it an alias 
   and dirctly import `f`.
 
   @code
