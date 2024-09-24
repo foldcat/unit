@@ -49,6 +49,7 @@ split_sexp :: proc(s: string, alloc := context.allocator) -> ^[dynamic]string {
 				break
 			case '\n':
 				// end of line
+				clear_and_append(buffer, result, alloc)
 				break
 			case '(':
 				clear_and_append(buffer, result, alloc)
