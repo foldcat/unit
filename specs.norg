@@ -28,6 +28,12 @@ The following specs are work in progress and is not final.
     (println (inc x)))
   @end
 
+** comments 
+  Similar to any lisp dialect: 
+  @code
+  ;; is a comment
+  @end
+
 ** namespace
 
   At the start of a file, a namespace must be provided. This system 
@@ -161,12 +167,12 @@ The following specs are work in progress and is not final.
     {:value T
      :value2 U})
 
-  (Box i8 String
+  (Box i8 String ; base on order of T and U
     {:value 1
      :value2 "hi"})
 
-  (Box {T i8 
-        U String}
+  (Box #{T i8 ; spec type explicitly
+         U String}
     {:value 1 
      :value2 "hi"})
   @end
