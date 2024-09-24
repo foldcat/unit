@@ -1,7 +1,7 @@
 # Unit Programming Language
 
 Unit is a high level imperative lisp dialect that aims to 
-target real time applications such as cli and gui programs.
+target real time applications such as cli and gui utilities.
 It is written in Odin and aims to target the LLVM platform.
 
 Unit is far from finished and is currently a prototype, which 
