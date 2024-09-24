@@ -1,82 +1,129 @@
 package parser
 
+import "../stack"
+import "core:bufio"
+import "core:fmt"
+import "core:log"
 import vmem "core:mem/virtual"
-import "core:unicode/utf8"
+import "core:os"
+import "core:strings"
 
-Split_State :: enum {
-	in_str,
-	in_atom,
+Syn_Type :: enum {
+	cell_start, // (
+	cell_end, // )
+	prog_start, // default
+	function, // (this)
+	string, // "a"
+	int, // 1
+	true,
+	false,
 }
 
-clear_and_append :: proc(
-	buffer: ^[dynamic]rune,
-	result: ^[dynamic]string,
-	alloc := context.allocator,
-) {
-	if len(buffer^) != 0 {
-		str := utf8.runes_to_string(buffer^[:], alloc) // maybe cause use after free?
-		append(result, str)
-		clear(buffer)
-	}
+Syntax :: struct {
+	type: Syn_Type,
+	name: string,
 }
 
-// TODO: handle escape sequences
-split_sexp :: proc(s: string, alloc := context.allocator) -> ^[dynamic]string {
-	// literally everything is on the heap now
-	// tis surely won't bite me in the back
-	result := new([dynamic]string, alloc)
-	buffer := new([dynamic]rune, alloc)
-	defer delete(buffer^) // cleanup
+Item :: union {
+	^Cons,
+	Syntax,
+}
 
 
-	state: Split_State = Split_State.in_atom
+Cons :: struct {
+	item: Item, // car
+	next: ^Cons, // cdr
+}
 
-	// parses a single line
 
-	for char in s {
-		switch state {
-		case Split_State.in_atom:
-			switch char {
-			case '"':
-				clear_and_append(buffer, result, alloc)
-				append(buffer, '"')
-				state = Split_State.in_str
-			case ';':
-				// got comment
-				if len(buffer^) != 0 {
-					clear_and_append(buffer, result, alloc)
-				}
-				break
-			case '\n':
-				// end of line
-				clear_and_append(buffer, result, alloc)
-				break
-			case '(':
-				clear_and_append(buffer, result, alloc)
-				append(result, "(")
-			case ')':
-				clear_and_append(buffer, result, alloc)
-				append(result, ")")
-			case ' ':
-				clear_and_append(buffer, result, alloc)
+// don't have a lot of idea what I am doing
+// but im sure i will figure something out
 
-			case ',':
-			// ignore unless 
-			case:
-				append(buffer, char)
-			}
-		case Split_State.in_str:
-			// append everything till next "
-			if char != '"' {
-				append(buffer, char)
-			} else {
-				append(buffer, '"')
-				clear_and_append(buffer, result, alloc)
-				state = Split_State.in_atom
-			}
+// parse a file into an AST
+parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
+	f, ferr := os.open(path)
+	defer os.close(f)
 
+	r: bufio.Reader
+	buffer: [1024]byte
+	bufio.reader_init_with_buf(&r, os.stream_from_handle(f), buffer[:])
+	defer bufio.reader_destroy(&r)
+
+	call_stack := stack.make_stack(^Cons, aalloc)
+	// defer stack.destroy_stack(call_stack, aalloc)
+
+	// imagine representing the ast with cons cells...
+	ast := new_clone(Cons{item = Syntax{type = Syn_Type.prog_start}}, aalloc)
+
+	current_cell: ^Cons = ast
+	current_buffer := new([dynamic]rune, aalloc)
+	defer delete(current_buffer^)
+
+	splitted := new([dynamic]string, aalloc)
+	defer delete(splitted^)
+
+	for {
+		line, err := bufio.reader_read_string(&r, '\n', aalloc)
+		if err != nil {
+			break
+		}
+		defer delete(line, aalloc)
+		line = strings.trim_right(line, "\r")
+
+		current := split_sexp(line, aalloc)
+		defer delete(current^)
+
+		for item in current {
+			append(splitted, item)
 		}
 
+		log.debugf("current line: %s", line)
+		log.debug(current)
 	}
-	return result
+
+	log.debug(splitted)
+
+
+	for item in splitted {
+		switch item {
+		case "(":
+			// append to callstack 
+			new_exp := new_clone(
+				Cons{item = Syntax{type = Syn_Type.cell_start, name = "("}},
+				aalloc,
+			)
+			stack.stack_push(call_stack, current_cell)
+			current_cell.item = new_exp
+			// log.debug("new exp")
+			// log.debug(new_exp)
+			// stack.print_stack(call_stack)
+			current_cell = new_exp
+		// log.info("new nest")
+		// log.info(new_exp)
+		case ")":
+			// pop and peek
+			// log.info("got )")
+			new_exp := new_clone(Cons{item = Syntax{type = Syn_Type.cell_end, name = ")"}}, aalloc)
+			current_cell.next = new_exp
+			// stack.print_stack(call_stack)
+			res, ok := stack.stack_pop(call_stack)
+			// stack.print_stack(call_stack)
+			// log.info(res)
+			if !ok {
+				log.error("unmatched parenthesis")
+				panic("unmatched parenthesis")
+			}
+			current_cell = res
+		case:
+			res := new_clone(Cons{item = Syntax{type = Syn_Type.string, name = item}}, aalloc)
+			// log.debug(res)
+			current_cell.next = res
+			current_cell = res
+		}
+	}
+
+	// log.info("===ast===")
+	// print_ast(ast)
+	// log.info("===end ast===")
+	return ast
 }
