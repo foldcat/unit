@@ -41,16 +41,11 @@ Cons :: struct {
 
 // parse a file into an AST
 parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
-	f, ferr := os.open(path)
-	defer os.close(f)
-
-	r: bufio.Reader
-	buffer: [1024]byte
-	bufio.reader_init_with_buf(&r, os.stream_from_handle(f), buffer[:])
-	defer bufio.reader_destroy(&r)
+	file, ok := os.read_entire_file(path, aalloc)
+	defer delete(file, aalloc)
 
 	call_stack := stack.make_stack(^Cons, aalloc)
-	// defer stack.destroy_stack(call_stack, aalloc)
+	defer stack.destroy_stack(call_stack, aalloc)
 
 	// imagine representing the ast with cons cells...
 	ast := new_clone(Cons{item = Syntax{type = Syn_Type.prog_start}}, aalloc)
@@ -59,27 +54,7 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 	current_buffer := new([dynamic]rune, aalloc)
 	defer delete(current_buffer^)
 
-	splitted := new([dynamic]string, aalloc)
-	defer delete(splitted^)
-
-	for {
-		line, err := bufio.reader_read_string(&r, '\n', aalloc)
-		if err != nil {
-			break
-		}
-		defer delete(line, aalloc)
-		line = strings.trim_right(line, "\r")
-
-		current := split_sexp(line, aalloc)
-		defer delete(current^)
-
-		for item in current {
-			append(splitted, item)
-		}
-
-		log.debugf("current line: %s", line)
-		log.debug(current)
-	}
+	splitted := split_sexp(string(file), aalloc)
 
 	log.debug(splitted)
 
