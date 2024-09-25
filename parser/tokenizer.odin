@@ -1,5 +1,6 @@
 package parser
 
+import "core:log"
 import vmem "core:mem/virtual"
 import "core:unicode/utf8"
 
@@ -67,7 +68,9 @@ split_sexp :: proc(s: string, alloc := context.allocator) -> ^[dynamic]string {
 			}
 		case Split_State.in_str:
 			// append everything till next "
-			if char != '"' {
+			if char == '\n' {
+				panic("unclosed \"")
+			} else if char != '"' {
 				append(buffer, char)
 			} else {
 				append(buffer, '"')

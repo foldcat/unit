@@ -41,8 +41,11 @@ Cons :: struct {
 
 // parse a file into an AST
 parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
-	file, ok := os.read_entire_file(path, aalloc)
-	defer delete(file, aalloc)
+	f, ferr := os.open(path)
+	if ferr != 0 {
+		panic("failed to open file")
+	}
+	defer os.close(f)
 
 	call_stack := stack.make_stack(^Cons, aalloc)
 	defer stack.destroy_stack(call_stack, aalloc)
@@ -54,7 +57,32 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 	current_buffer := new([dynamic]rune, aalloc)
 	defer delete(current_buffer^)
 
-	splitted := split_sexp(string(file), aalloc)
+	splitted := new([dynamic]string, aalloc)
+	defer delete(splitted^)
+
+	// splitted := split_sexp(string(file), aalloc)
+	r: bufio.Reader
+	buffer: [1024]byte
+	bufio.reader_init_with_buf(&r, os.stream_from_handle(f), buffer[:])
+
+	for {
+		line, err := bufio.reader_read_string(&r, '\n', aalloc)
+		if err != nil {
+			break
+		}
+		defer delete(line, aalloc)
+		line = strings.trim_right(line, "\r")
+
+		current := split_sexp(line, aalloc)
+		defer delete(current^)
+
+		for item in current {
+			append(splitted, item)
+		}
+
+		log.debugf("current line: %s", line)
+		log.debug(current)
+	}
 
 	log.debug(splitted)
 
