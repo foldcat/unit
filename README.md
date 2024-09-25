@@ -10,6 +10,8 @@ only the parser is partially implemented.
 To test out the prototype parser: 
 
 ```bash
+git submodule update --init --recursive
+
 odin build . 
 ./unit file.unit
 ```
