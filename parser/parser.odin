@@ -95,8 +95,10 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 				Cons{item = Syntax{type = Syn_Type.cell_start, name = "("}},
 				aalloc,
 			)
-			stack.stack_push(call_stack, current_cell)
-			current_cell.item = new_exp
+			res := new_clone(Cons{item = new_exp}, aalloc)
+			stack.stack_push(call_stack, res)
+			// this overrides the thing
+			current_cell.next = res
 			// log.debug("new exp")
 			// log.debug(new_exp)
 			// stack.print_stack(call_stack)
