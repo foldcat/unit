@@ -1,4 +1,5 @@
 package parser
+
 import "core:fmt"
 
 print_tabs :: proc(nest_count: i8) {
@@ -26,31 +27,33 @@ print_ast :: proc(ast: ^Cons, nest_level: i8 = 0) {
 			// log.debug("item")
 			// log.debug(buffer)
 			// log.debug(ast.next)
-			append(&tree, buffer.item) 
-      buffer = buffer.next 
-    }
+			append(&tree, buffer.item)
+			buffer = buffer.next
+		}
 	}
 	// log.debug(tree)
 
 	// now traverse it 
 	for item in tree {
 		// log.debug(item)
-		switch i in item {
+		#partial switch i in item {
 		case ^Cons:
 			// log.debug("got cons")
 			// print_tabs(nest_level)
 			// log.debug(item)
 			// log.debug(i.next)
 			print_ast(i, nest_level + 1)
-		case Syntax:
+		case Data:
 			// log.debug("got syntax")
-			#partial switch i.type {
-			case Syn_Type.cell_start:
+			#partial switch d in i { 	// i really need to learn naming
+			case Scope_Start:
 				print_tabs(nest_level - 1)
 				fmt.println("(")
-			case Syn_Type.cell_end:
+			case Scope_End:
 				print_tabs(nest_level - 1)
 				fmt.println(")")
+			case Prog_Start:
+			// do nothing
 			case:
 				print_tabs(nest_level)
 				fmt.println(i)

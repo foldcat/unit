@@ -8,25 +8,9 @@ import vmem "core:mem/virtual"
 import "core:os"
 import "core:strings"
 
-Syn_Type :: enum {
-	cell_start, // (
-	cell_end, // )
-	prog_start, // default
-	function, // (this)
-	string, // "a"
-	int, // 1
-	true,
-	false,
-}
-
-Syntax :: struct {
-	type: Syn_Type,
-	name: string,
-}
-
 Item :: union {
 	^Cons,
-	Syntax,
+	Data,
 }
 
 
@@ -51,13 +35,16 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 	defer stack.destroy_stack(call_stack, aalloc)
 
 	// imagine representing the ast with cons cells...
-	ast := new_clone(Cons{item = Syntax{type = Syn_Type.prog_start}}, aalloc)
+
+	// when type inference is confused
+	p_start: Data = new(Prog_Start, aalloc)^
+	ast := new_clone(Cons{item = p_start}, aalloc)
 
 	current_cell: ^Cons = ast
 	current_buffer := new([dynamic]rune, aalloc)
 	defer delete(current_buffer^)
 
-	splitted := new([dynamic]string, aalloc)
+	splitted := new([dynamic]Data, aalloc)
 	defer delete(splitted^)
 
 	// splitted := split_sexp(string(file), aalloc)
@@ -87,14 +74,12 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 	log.debug(splitted)
 
 
-	for item in splitted {
-		switch item {
-		case "(":
+	for raw_item in splitted {
+		#partial switch item in raw_item {
+		case Scope_Start:
 			// append to callstack 
-			new_exp := new_clone(
-				Cons{item = Syntax{type = Syn_Type.cell_start, name = "("}},
-				aalloc,
-			)
+			scope: Data = new(Scope_Start, aalloc)^
+			new_exp := new_clone(Cons{item = scope}, aalloc)
 			res := new_clone(Cons{item = new_exp}, aalloc)
 			stack.stack_push(call_stack, res)
 			// this overrides the thing
@@ -105,10 +90,11 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 			current_cell = new_exp
 		// log.info("new nest")
 		// log.info(new_exp)
-		case ")":
+		case Scope_End:
 			// pop and peek
 			// log.info("got )")
-			new_exp := new_clone(Cons{item = Syntax{type = Syn_Type.cell_end, name = ")"}}, aalloc)
+			scope: Data = new(Scope_End, aalloc)^
+			new_exp := new_clone(Cons{item = scope}, aalloc)
 			current_cell.next = new_exp
 			// stack.print_stack(call_stack)
 			res, ok := stack.stack_pop(call_stack)
@@ -120,8 +106,8 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 			}
 			current_cell = res
 		case:
-			res := new_clone(Cons{item = Syntax{type = Syn_Type.string, name = item}}, aalloc)
 			// log.debug(res)
+			res := new_clone(Cons{item = item}, aalloc)
 			current_cell.next = res
 			current_cell = res
 		}

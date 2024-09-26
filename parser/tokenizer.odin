@@ -9,23 +9,46 @@ Split_State :: enum {
 	in_atom,
 }
 
-clear_and_append :: proc(
+// could use some parapoly
+
+clear_and_append_string :: proc(
 	buffer: ^[dynamic]rune,
-	result: ^[dynamic]string,
+	result: ^[dynamic]Data,
 	alloc := context.allocator,
 ) {
 	if len(buffer^) != 0 {
 		str := utf8.runes_to_string(buffer^[:], alloc) // maybe cause use after free?
-		append(result, str)
+		append(result, String{data = str})
+		clear(buffer)
+	}
+}
+
+clear_and_append_reference :: proc(
+	buffer: ^[dynamic]rune,
+	result: ^[dynamic]Data,
+	alloc := context.allocator,
+) {
+	if len(buffer^) != 0 {
+		str := utf8.runes_to_string(buffer^[:], alloc) // gets freed, i hope
+
+		// boolean solution 
+		switch str {
+		case "true":
+			append(result, Bool{data = true})
+		case "false":
+			append(result, Bool{data = false})
+		case:
+			append(result, Reference{name = str})
+		}
 		clear(buffer)
 	}
 }
 
 // TODO: handle escape sequences
-split_sexp :: proc(s: string, alloc := context.allocator) -> ^[dynamic]string {
+split_sexp :: proc(s: string, alloc := context.allocator) -> (result: ^[dynamic]Data) {
 	// literally everything is on the heap now
 	// tis surely won't bite me in the back
-	result := new([dynamic]string, alloc)
+	result = new([dynamic]Data, alloc)
 	buffer := new([dynamic]rune, alloc)
 	defer delete(buffer^) // cleanup
 
@@ -39,27 +62,24 @@ split_sexp :: proc(s: string, alloc := context.allocator) -> ^[dynamic]string {
 		case Split_State.in_atom:
 			switch char {
 			case '"':
-				clear_and_append(buffer, result, alloc)
-				append(buffer, '"')
+				clear_and_append_reference(buffer, result, alloc)
 				state = Split_State.in_str
 			case ';':
 				// got comment
-				if len(buffer^) != 0 {
-					clear_and_append(buffer, result, alloc)
-				}
-				break
+				clear_and_append_reference(buffer, result, alloc)
+				return
 			case '\n':
 				// end of line
-				clear_and_append(buffer, result, alloc)
+				clear_and_append_reference(buffer, result, alloc)
 				break
 			case '(':
-				clear_and_append(buffer, result, alloc)
-				append(result, "(")
+				clear_and_append_reference(buffer, result, alloc)
+				append(result, Scope_Start{})
 			case ')':
-				clear_and_append(buffer, result, alloc)
-				append(result, ")")
+				clear_and_append_reference(buffer, result, alloc)
+				append(result, Scope_End{})
 			case ' ':
-				clear_and_append(buffer, result, alloc)
+				clear_and_append_reference(buffer, result, alloc)
 
 			case ',':
 			// ignore unless 
@@ -73,13 +93,12 @@ split_sexp :: proc(s: string, alloc := context.allocator) -> ^[dynamic]string {
 			} else if char != '"' {
 				append(buffer, char)
 			} else {
-				append(buffer, '"')
-				clear_and_append(buffer, result, alloc)
+				clear_and_append_string(buffer, result, alloc)
 				state = Split_State.in_atom
 			}
 
 		}
 
 	}
-	return result
+	return
 }
