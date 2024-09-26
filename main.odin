@@ -12,11 +12,15 @@ import "stack"
 
 
 main :: proc() {
+	logger := log.create_console_logger(log.Level.Info)
+
 	// boilerplate
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
 		mem.tracking_allocator_init(&track, context.allocator)
 		context.allocator = mem.tracking_allocator(&track)
+
+		logger = log.create_console_logger(log.Level.Debug)
 
 		defer {
 			if len(track.allocation_map) > 0 {
@@ -35,7 +39,6 @@ main :: proc() {
 		}
 	}
 
-	logger := log.create_console_logger()
 	context.logger = logger
 	defer log.destroy_console_logger(logger)
 
