@@ -101,7 +101,6 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 			// stack.print_stack(call_stack)
 			// log.info(res)
 			if !ok {
-				log.error("unmatched parenthesis")
 				panic("unmatched parenthesis")
 			}
 			current_cell = res
@@ -113,8 +112,9 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 		}
 	}
 
-	// log.info("===ast===")
-	// print_ast(ast)
-	// log.info("===end ast===")
+	if _, ok := stack.stack_peek(call_stack); ok {
+		panic("unmatched parenthesis")
+	}
+
 	return ast
 }
