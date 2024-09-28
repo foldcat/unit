@@ -76,30 +76,37 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 
 	for raw_item in splitted {
 		#partial switch item in raw_item {
+    // dry enjoyers im shambles now
 		case Scope_Start:
 			// append to callstack 
 			scope: Data = new(Scope_Start, aalloc)^
 			new_exp := new_clone(Cons{item = scope}, aalloc)
 			res := new_clone(Cons{item = new_exp}, aalloc)
 			stack.stack_push(call_stack, res)
-			// this overrides the thing
 			current_cell.next = res
-			// log.debug("new exp")
-			// log.debug(new_exp)
-			// stack.print_stack(call_stack)
 			current_cell = new_exp
-		// log.info("new nest")
-		// log.info(new_exp)
+		case Vector_Start:
+			// append to callstack 
+			scope: Data = new(Vector_Start, aalloc)^
+			new_exp := new_clone(Cons{item = scope}, aalloc)
+			res := new_clone(Cons{item = new_exp}, aalloc)
+			stack.stack_push(call_stack, res)
+			current_cell.next = res
+			current_cell = new_exp
 		case Scope_End:
-			// pop and peek
-			// log.info("got )")
 			scope: Data = new(Scope_End, aalloc)^
 			new_exp := new_clone(Cons{item = scope}, aalloc)
 			current_cell.next = new_exp
-			// stack.print_stack(call_stack)
 			res, ok := stack.stack_pop(call_stack)
-			// stack.print_stack(call_stack)
-			// log.info(res)
+			if !ok {
+				panic("unmatched parenthesis")
+			}
+			current_cell = res
+		case Vector_End:
+			scope: Data = new(Vector_End, aalloc)^
+			new_exp := new_clone(Cons{item = scope}, aalloc)
+			current_cell.next = new_exp
+			res, ok := stack.stack_pop(call_stack)
 			if !ok {
 				panic("unmatched parenthesis")
 			}

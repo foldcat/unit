@@ -7,6 +7,8 @@ import "core:mem"
 import vmem "core:mem/virtual"
 import "core:os"
 import "core:strings"
+import "llvm"
+import "irgen"
 import "parser"
 import "stack"
 
@@ -54,4 +56,6 @@ main :: proc() {
 	log.info("===begin AST===")
 	parser.print_ast(ast)
 	log.info("===end AST===")
+
+  irgen.gen_sum()
 }

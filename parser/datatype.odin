@@ -9,6 +9,8 @@ Data :: union {
 	Reference,
 	Scope_Start,
 	Scope_End,
+	Vector_Start,
+	Vector_End,
 	Prog_Start,
 }
 
@@ -37,8 +39,11 @@ Reference :: struct {
 	name: string,
 }
 
-// these two are empty
+// these are empty
 Scope_Start :: struct {}
 Scope_End :: struct {}
+
+Vector_Start :: struct {}
+Vector_End :: struct {}
 
 Prog_Start :: struct {}

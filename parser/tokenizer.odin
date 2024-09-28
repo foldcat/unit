@@ -78,6 +78,12 @@ split_sexp :: proc(s: string, alloc := context.allocator) -> (result: ^[dynamic]
 			case ')':
 				clear_and_append_reference(buffer, result, alloc)
 				append(result, Scope_End{})
+			case '[':
+				clear_and_append_reference(buffer, result, alloc)
+				append(result, Vector_Start{})
+			case ']':
+				clear_and_append_reference(buffer, result, alloc)
+				append(result, Vector_End{})
 			case ' ':
 				clear_and_append_reference(buffer, result, alloc)
 
