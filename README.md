@@ -1,4 +1,11 @@
-# Unit Programming Language
+```
+     _________________________/\/\______/\/\_____
+    _/\/\__/\/\__/\/\/\/\____________/\/\/\/\/\_
+   _/\/\__/\/\__/\/\__/\/\__/\/\______/\/\_____
+  _/\/\__/\/\__/\/\__/\/\__/\/\______/\/\_____
+ ___/\/\/\/\__/\/\__/\/\__/\/\/\____/\/\/\___
+____________________________________________
+```
 
 Unit is a high level imperative lisp dialect that aims to 
 target real time applications such as cli and gui utilities.
@@ -10,8 +17,6 @@ only the parser is partially implemented.
 To test out the prototype parser: 
 
 ```bash
-git submodule update --init --recursive
-
-odin build . 
-./unit file.unit
+./build.sh # build unit
+./unit test.unit # run it with a file
 ```
