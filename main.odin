@@ -7,8 +7,8 @@ import "core:mem"
 import vmem "core:mem/virtual"
 import "core:os"
 import "core:strings"
-import "llvm"
 import "irgen"
+import "llvm"
 import "parser"
 import "stack"
 
@@ -44,6 +44,12 @@ main :: proc() {
 	context.logger = logger
 	defer log.destroy_console_logger(logger)
 
+	if len(os.args) == 1 {
+		log.info("unit compiler")
+		log.infof("usage: %s file.unit", os.args[0])
+		os.exit(0)
+	}
+
 	file := os.args[1]
 	log.infof("parsing %s", file)
 
@@ -57,5 +63,5 @@ main :: proc() {
 	parser.print_ast(ast)
 	log.info("===end AST===")
 
-  irgen.gen_sum()
+	irgen.gen_sum()
 }

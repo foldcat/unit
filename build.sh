@@ -11,6 +11,8 @@ ____________________________________________"
 
 echo "$logo"
 
+echo 
+
 echo "building unit..."
 
 echo 
@@ -68,3 +70,5 @@ echo "done building"
 echo
 
 echo "unit should be ready!"
+
+echo
