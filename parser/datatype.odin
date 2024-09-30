@@ -11,6 +11,8 @@ Data :: union {
 	Scope_End,
 	Vector_Start,
 	Vector_End,
+	Integer,
+	Float,
 	Prog_Start,
 }
 
@@ -39,6 +41,14 @@ Reference :: struct {
 	name: string,
 }
 
+Integer :: struct {
+	data: int,
+}
+
+Float :: struct {
+	data: f64,
+}
+
 // these are empty
 Scope_Start :: struct {}
 Scope_End :: struct {}
@@ -46,4 +56,6 @@ Scope_End :: struct {}
 Vector_Start :: struct {}
 Vector_End :: struct {}
 
-Prog_Start :: struct {}
+Prog_Start :: struct {
+	filename: string,
+}

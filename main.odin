@@ -62,6 +62,4 @@ main :: proc() {
 	log.info("===begin AST===")
 	parser.print_ast(ast)
 	log.info("===end AST===")
-
-	irgen.gen_sum()
 }

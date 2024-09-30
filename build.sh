@@ -61,9 +61,19 @@ if [ ! -f "libLLVM.so" ]; then
 fi
 
 echo "building unit..."
-$odin_path build .
 
 echo
+
+exit_status=0
+
+$odin_path build .
+
+if [ $? -ne 0 ]; then
+  echo "failed to build unit"
+  echo
+  exit 1
+fi
+
 
 echo "done building"
 

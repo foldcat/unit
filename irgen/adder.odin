@@ -1,5 +1,7 @@
 package irgen
 
+// this is strictly for testing if libLLVM works
+
 import llvm "../llvm"
 
 gen_sum :: proc() {

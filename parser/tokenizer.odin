@@ -2,6 +2,7 @@ package parser
 
 import "core:log"
 import vmem "core:mem/virtual"
+import "core:strconv"
 import "core:unicode/utf8"
 
 Split_State :: enum {
@@ -23,6 +24,51 @@ clear_and_append_string :: proc(
 	}
 }
 
+nums: bit_set['0' ..= '9'] : {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
+
+// cast a string token to a correctly formatted
+// number, float or integer
+to_number :: proc(target: string, alloc := context.allocator) -> (result: Data, is_valid: bool) {
+	is_valid = false
+	is_float := false
+
+	first_time := true // is the first character number
+
+	for char in target {
+		if char not_in nums && char != '.' {
+			if !first_time {
+				panic("non number ref cannot start with number")
+			}
+			// invalid
+			return
+		} else if char == '.' && is_float == false {
+			is_float = true
+		} else if char == '.' && is_float == true {
+			// somehow 2 periods in the thing 
+			// compain immeidately
+			panic("more than 2 periods in a floating number")
+		}
+		if first_time {
+			first_time = false
+		}
+	}
+
+	if is_float {
+		n := strconv.parse_f64(target) or_return
+		result = new_clone(Float{data = n}, alloc)^
+		is_valid = true
+	} else {
+		n := strconv.parse_int(target) or_return
+		result = new_clone(Integer{data = n}, alloc)^
+		is_valid = true
+	}
+
+	return
+}
+
+// i want to be a never nester but
+// not every solution are elegant
+
 clear_and_append_reference :: proc(
 	buffer: ^[dynamic]rune,
 	result: ^[dynamic]Data,
@@ -30,6 +76,13 @@ clear_and_append_reference :: proc(
 ) {
 	if len(buffer^) != 0 {
 		str := utf8.runes_to_string(buffer^[:], alloc) // gets freed, i hope
+
+		res, ok := to_number(str, alloc)
+		if ok { 	// if it is a number
+			clear(buffer)
+			append(result, res)
+			return
+		}
 
 		// boolean solution 
 		switch str {

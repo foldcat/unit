@@ -31,13 +31,20 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 	}
 	defer os.close(f)
 
+	file_chunks, err := strings.split(path, "/", aalloc)
+	if err != os.ERROR_NONE {
+		panic("split string allocation error")
+	}
+	// must be a better way to do it...
+	file_name := file_chunks[len(file_chunks) - 1]
+
 	call_stack := stack.make_stack(^Cons, aalloc)
 	defer stack.destroy_stack(call_stack, aalloc)
 
 	// imagine representing the ast with cons cells...
 
 	// when type inference is confused
-	p_start: Data = new(Prog_Start, aalloc)^
+	p_start: Data = new_clone(Prog_Start{filename = file_name}, aalloc)^
 	ast := new_clone(Cons{item = p_start}, aalloc)
 
 	current_cell: ^Cons = ast
@@ -47,7 +54,6 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 	splitted := new([dynamic]Data, aalloc)
 	defer delete(splitted^)
 
-	// splitted := split_sexp(string(file), aalloc)
 	r: bufio.Reader
 	buffer: [1024]byte
 	bufio.reader_init_with_buf(&r, os.stream_from_handle(f), buffer[:])
@@ -76,7 +82,7 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 
 	for raw_item in splitted {
 		#partial switch item in raw_item {
-    // dry enjoyers im shambles now
+		// dry enjoyers im shambles now
 		case Scope_Start:
 			// append to callstack 
 			scope: Data = new(Scope_Start, aalloc)^
