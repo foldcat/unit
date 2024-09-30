@@ -99,6 +99,22 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 			stack.stack_push(call_stack, res)
 			current_cell.next = res
 			current_cell = new_exp
+		case Map_Start:
+			scope: Data = new(Map_Start, aalloc)^
+			new_exp := new_clone(Cons{item = scope}, aalloc)
+			res := new_clone(Cons{item = new_exp}, aalloc)
+			stack.stack_push(call_stack, res)
+			current_cell.next = res
+			current_cell = new_exp
+		case Map_End:
+			scope: Data = new(Map_End, aalloc)^
+			new_exp := new_clone(Cons{item = scope}, aalloc)
+			current_cell.next = new_exp
+			res, ok := stack.stack_pop(call_stack)
+			if !ok {
+				panic("unmatched map")
+			}
+			current_cell = res
 		case Scope_End:
 			scope: Data = new(Scope_End, aalloc)^
 			new_exp := new_clone(Cons{item = scope}, aalloc)
@@ -114,7 +130,7 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 			current_cell.next = new_exp
 			res, ok := stack.stack_pop(call_stack)
 			if !ok {
-				panic("unmatched parenthesis")
+				panic("unmatched vector")
 			}
 			current_cell = res
 		case:

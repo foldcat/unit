@@ -186,3 +186,11 @@ The following specs are work in progress and is not final.
   (defn extract [box]
     (:value box))
   @end
+
+  We declare a `T`, which is filled with a real type during compile time.
+
+  @code 
+  (: extract [(: Type1 Type2 T) => T -> T])
+  (defn extract [box]
+    (:value box))
+  @end

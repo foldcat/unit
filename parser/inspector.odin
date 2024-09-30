@@ -58,6 +58,12 @@ print_ast :: proc(ast: ^Cons, nest_level: i8 = 0) {
 			case Vector_End:
 				print_tabs(nest_level - 1)
 				fmt.println("]")
+			case Map_Start:
+				print_tabs(nest_level - 1)
+				fmt.println("{")
+			case Map_End:
+				print_tabs(nest_level - 1)
+				fmt.println("}")
 			case Prog_Start:
 			// do nothing
 			case:

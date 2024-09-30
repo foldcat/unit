@@ -28,8 +28,13 @@ nums: bit_set['0' ..= '9'] : {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 
 // cast a string token to a correctly formatted
 // number, float or integer
-to_number :: proc(target: string, alloc := context.allocator) -> (result: Data, is_valid: bool) {
-	is_valid = false
+to_number :: proc(
+	target: string,
+	alloc := context.allocator,
+) -> (
+	result: Data,
+	is_valid := false, // ugh
+) {
 	is_float := false
 
 	first_time := true // is the first character number
@@ -66,6 +71,23 @@ to_number :: proc(target: string, alloc := context.allocator) -> (result: Data, 
 	return
 }
 
+// TODO: consider if atoms are even needed
+to_atom :: proc(target: string) -> (result: Data, is_valid := false) {
+	for char in target { 	// this is quite handful for getting some runes from a string
+		if char != ':' { 	// it is not an atom
+			return
+		} else {
+			is_valid = true
+			break
+		}
+	}
+
+	result = Atom {
+		data = target,
+	} // the : is kept there
+	return
+}
+
 // i want to be a never nester but
 // not every solution are elegant
 
@@ -74,12 +96,19 @@ clear_and_append_reference :: proc(
 	result: ^[dynamic]Data,
 	alloc := context.allocator,
 ) {
+	defer clear(buffer)
+
 	if len(buffer^) != 0 {
 		str := utf8.runes_to_string(buffer^[:], alloc) // gets freed, i hope
 
 		res, ok := to_number(str, alloc)
 		if ok { 	// if it is a number
-			clear(buffer)
+			append(result, res)
+			return
+		}
+
+		res, ok = to_atom(str)
+		if ok {
 			append(result, res)
 			return
 		}
@@ -93,7 +122,6 @@ clear_and_append_reference :: proc(
 		case:
 			append(result, Reference{name = str})
 		}
-		clear(buffer)
 	}
 }
 
@@ -137,6 +165,12 @@ split_sexp :: proc(s: string, alloc := context.allocator) -> (result: ^[dynamic]
 			case ']':
 				clear_and_append_reference(buffer, result, alloc)
 				append(result, Vector_End{})
+			case '{':
+				clear_and_append_reference(buffer, result, alloc)
+				append(result, Map_Start{})
+			case '}':
+				clear_and_append_reference(buffer, result, alloc)
+				append(result, Map_End{})
 			case ' ':
 				clear_and_append_reference(buffer, result, alloc)
 

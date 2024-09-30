@@ -11,6 +11,8 @@ Data :: union {
 	Scope_End,
 	Vector_Start,
 	Vector_End,
+  Map_Start,
+  Map_End,
 	Integer,
 	Float,
 	Prog_Start,
@@ -55,6 +57,9 @@ Scope_End :: struct {}
 
 Vector_Start :: struct {}
 Vector_End :: struct {}
+
+Map_Start :: struct {}
+Map_End :: struct {}
 
 Prog_Start :: struct {
 	filename: string,
