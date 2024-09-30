@@ -23,6 +23,21 @@ Cons :: struct {
 // don't have a lot of idea what I am doing
 // but im sure i will figure something out
 
+// insert Prog_End at the end of the AST
+insert_progend :: proc(ast: ^Cons, aalloc := context.allocator) {
+	current := ast
+	for {
+		if current.next != nil {
+			current = current.next
+		} else {
+			break
+		}
+	}
+	prog_end: Data = new(Prog_End, aalloc)^
+	end_node := new_clone(Cons{item = prog_end}, aalloc)
+	current.next = end_node
+}
+
 // parse a file into an AST
 parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 	f, ferr := os.open(path)
@@ -144,6 +159,8 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 	if _, ok := stack.stack_peek(call_stack); ok {
 		panic("unmatched parenthesis")
 	}
+
+	insert_progend(ast, aalloc)
 
 	return ast
 }

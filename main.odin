@@ -1,5 +1,6 @@
 package main
 
+import "analyzer"
 import "core:bufio"
 import "core:fmt"
 import "core:log"

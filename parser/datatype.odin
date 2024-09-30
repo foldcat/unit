@@ -16,6 +16,7 @@ Data :: union {
 	Integer,
 	Float,
 	Prog_Start,
+  Prog_End,
 }
 
 String :: struct {
@@ -64,3 +65,4 @@ Map_End :: struct {}
 Prog_Start :: struct {
 	filename: string,
 }
+Prog_End :: struct {}
