@@ -125,7 +125,6 @@ clear_and_append_reference :: proc(
 	}
 }
 
-// TODO: handle escape sequences
 split_sexp :: proc(s: string, alloc := context.allocator) -> (result: ^[dynamic]Data) {
 	// literally everything is on the heap now
 	// tis surely won't bite me in the back
@@ -135,6 +134,7 @@ split_sexp :: proc(s: string, alloc := context.allocator) -> (result: ^[dynamic]
 
 
 	state: Split_State = Split_State.in_atom
+	is_escaped := false
 
 	// parses a single line
 
@@ -181,17 +181,31 @@ split_sexp :: proc(s: string, alloc := context.allocator) -> (result: ^[dynamic]
 			}
 		case Split_State.in_str:
 			// append everything till next "
-			if char == '\n' {
-				panic("unclosed \"")
-			} else if char != '"' {
-				append(buffer, char)
-			} else {
-				clear_and_append_string(buffer, result, alloc)
-				state = Split_State.in_atom
+			if char == '\\' {
+				if !is_escaped {
+					is_escaped = true
+          continue
+				}
 			}
 
+			if is_escaped {
+				if char == ' ' {
+					is_escaped = false
+					append(buffer, char)
+				} else {
+					append(buffer, char)
+				}
+			} else {
+				if char == '\n' {
+					panic("unclosed \"")
+				} else if char != '"' {
+					append(buffer, char)
+				} else {
+					clear_and_append_string(buffer, result, alloc)
+					state = Split_State.in_atom
+				}
+			}
 		}
-
 	}
 	return
 }
