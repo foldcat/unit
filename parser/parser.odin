@@ -53,7 +53,7 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 	// must be a better way to do it...
 	file_name := file_chunks[len(file_chunks) - 1]
 
-	call_stack := stack.make_stack(^Cons, aalloc)
+	call_stack, _ := stack.make_stack(^Cons, aalloc)
 	defer stack.destroy_stack(call_stack, aalloc)
 
 	// imagine representing the ast with cons cells...

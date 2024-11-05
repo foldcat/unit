@@ -10,28 +10,29 @@ import "core:fmt"
 
 walk :: proc(ast: ^parser.Cons) {
 	// might just be trampolining
-	call_stack := stack.make_stack(^parser.Cons)
+	call_stack, _ := stack.make_stack(^parser.Cons)
 	defer stack.destroy_stack(call_stack)
 
-	nest_level := 0
 	current := ast
+	base := ast // root node, prob a function
 
 	// we assume the ast isn't broken
 	for {
 		switch &data in current.item {
 		case ^parser.Cons:
-			nest_level += 1
 			stack.stack_push(call_stack, current)
 			current = data
+			base = data
+		// do stuff here
+
 		case parser.Data:
-			parser.print_tabs(i8(nest_level))
-			fmt.println(data)
+			// do stuff here
+
 			if current.next == nil {
 				res, ok := stack.stack_pop(call_stack)
 				if !ok {
 					return
 				}
-				nest_level -= 1
 				current = res.next
 			} else {
 				current = current.next

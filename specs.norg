@@ -2,10 +2,8 @@
 
 The following is the specs for the Unit programming language, a lisp 
 dialect. We aim to target programs that are closer to metal, with 
-safety and flexibility in mind. This language is inspired by Clojure,
-Typed Scheme, Common Lisp, Scala and Odin. The goal is to create a 
-language that generally has enough speed to be able to accomplish
-real time tasks such as terminal UI and desktop applications.
+safety and flexibility in mind. This language is inspired by multiple 
+languages, including Clojure, Typed Racket and Odin.
 
 This language will be fairly imperative, and has elements of 
 functional programming where it makes sense.
@@ -18,179 +16,315 @@ The following specs are work in progress and is not final.
 
   The Unit programming language has a syntax very similar to Clojure.
 
-  @code
-  (: inc [Num -> Num])
-  (defn inc [n]
-    (+ 1 n))
-
-  (defn core []
-    (val x (i32 1))
-    (println (inc x)))
-  @end
-
-** comments 
-  Similar to any lisp dialect: 
-  @code
-  ;; is a comment
-  @end
-
-** namespace
-
-  At the start of a file, a namespace must be provided. This system 
-  is very similar to Clojure's.
-
-  @code
-  (ns foo)
-  @end
-
-  A namespace acts like a tree, allowing one to organize code 
-  like a directory tree
-
-  @code
-  (ns foo.bar)
-  @end
-
-  To use functions or variables, import them 
-
-  @code
-  (ns foo 
-    (:import [foo.bar :as bar :refer [f]]))
-  @end
-
-  In the above case, we import `foo.bar`, give it an alias 
-  and dirctly import `f`.
-
-  @code
-  (f args)
-  (bar/other-fn)
-  (foo.bar/another-fn)
-  @end
-
-  As `f` is directly imported, one does not need to write the 
-  namespace. One can call functions based on the raw name 
-  of the namespace or the alias.
-
-** type system
-  
-  The type system of Unit is like a tree.
-
-  @code
-  Any/
-    ├── Num/
-    │   ├── AutoNum
-    │   ├── Integer/
-    │   │    ├── Signed/
-    │   │    │   ├── i128
-    │   │    │   ├── i64
-    │   │    │   ├── i32 
-    │   │    │   ├── i16
-    │   │    │   └── i8 
-    │   │    └── Unsigned/
-    │   │        ├── u128
-    │   │        ├── u64
-    │   │        ├── u32
-    │   │        ├── i16
-    │   │        └── u8
-    │   └── Float/
-    │        ├── f64
-    │        ├── f32
-    │        └── f16
-    ├── Coll/
-    │   ├── List
-    │   ├── Vector
-    │   ├── Map
-    │   └── Queue
-    ├── String
-    ├── Bool
-    └── Atom
-  @end
-
-  Each item in the tree with a `/` is a protocol. Each protocol 
-  is a set of generic functions. To be a child of the protocol, 
-  one must implement all the functions specified in it.
-
-  @code
-  (defprotocol Animal
-    (: talk [this -> String])
-    (: move [this -> Vector]))
-
-  (defstruct Cat [Animal]
-    {:name String
-     :age f16
-     :pos (Vector i8)}
-
-    (talk [this]
-      "meow")
-
-    (move [this]
-      (let [pos (:pos this)]
-        [(first pos) (succ (sec pos))])))
-
-  (def paul
-    (Cat {:name "paul"
-          :age 0.5
-          :pos [1 1]}))
-
-  (talk paul)
-  @end
-
-  In order to implement a protocol for an already defined structure,
-
+  For regular function calls:
   @code 
-  (defstruct Cat []
-    {:name String
-     :age f16
-     :pos (Vector i8)})
-
-  (attach-protocol Cat 
-    Animal 
-    (talk [this] (todo "impl this"))
-    (move [this] (todo "impl this")))
+  (fnname ...)
   @end
 
-  To use a protocol as a type:
+  Unit includes few built in reader macros:
 
+  Vector:
+  @code syntax
+  [items]
+  items = 
+        | values
+  @end
+
+  Maps:
+  @code syntax
+  {kvpair}
+  kvpair = 
+         | key value
+  @end
+
+
+  Note that `,` is treated as spaces.
   @code
-  (: foo [Animal -> String])
-  (defn foo [a] (todo "impl this"))
+  ,,,,,,,,(do-stuff,,,,arg1,,,arg2)
   @end
 
-  Said function is polymorphic and can take any `Animal`.
+  *** comments 
 
-*** carrier type
+    Similar to any lisp dialect: 
+    @code
+    ;; comment
+    @end
 
-  Carrier types are a type that takes in another type.
+    Command blocks may also be used: 
+    @code
+    (comment ...)
+    @end
 
-  @code
-  (defstruct Box
-    #{T U}
-    {:value T
-     :value2 U})
+  *** special forms
 
-  (Box i8 String ; base on order of T and U
-    {:value 1
-     :value2 "hi"})
+    Special form handles binding of variables and other related 
+    operations not handled by ordinary syntaxes. They are either 
+    related to syntaxes or they are used to create new values.
 
-  (Box #{T i8 ; spec type explicitly
-         U String}
-    {:value 1 
-     :value2 "hi"})
-  @end
+    **** definition 
+    @code
+    (def name val)
+    @end
 
-*** generic
-  
-  Generics are used for carriers that you do not know the inner type of.
+    @code
+    (defn name [bindings ...] body)
+    bindings = 
+             | args
+    @end
+            
 
-  @code 
-  (: extract [T => (Box T) -> T])
-  (defn extract [box]
-    (:value box))
-  @end
+    **** type specification
+    `:` specifies the type of data
+    @code
+    (: name-of-var type)
+    @end
 
-  We declare a `T`, which is filled with a real type during compile time.
+    For functions:
+    @code
+    (: name-of-function [arg1 arg2] return)
+    @end
 
-  @code 
-  (: extract [(: Type1 Type2 T) => T -> T])
-  (defn extract [box]
-    (:value box))
-  @end
+    Generics: 
+    @code
+    (: name-of-function [])
+    @end
+
+    **** definition 
+    `def` binds a value to a name
+    @code
+    (def x 1) ;; inference
+    @end
+
+    **** do
+    `do` blocks handles multiple expressions and return the result 
+    of the expressions.
+    This is commonly used in control flow such as `if` and `cond`.
+
+    @code
+    (do 
+      (fn1)
+      (fn2))
+    @end
+
+    Values stored in the `do` blocks will not be accessible outside of it.
+
+    @code
+    (do 
+      (def x 12)
+      (println x))
+    (println x) ;; error
+    @end
+
+
+    **** lambda
+    `fn` serves as lambda functions for Unit. 
+    It has it's own special syntax.
+    @code
+    (fn [{binding-name binding-type} value
+         {binding-name2 binding-type2} value]
+      (do-stuff))
+    @end
+
+
+  *** control flow
+
+    There are multiple control flow syntaxes for Unit.
+
+    `if` expression:
+    @code
+    (if test 
+      true-case 
+      false-case)
+
+    (if (= 1 1)
+      (println "true")
+      ())
+    @end
+
+    `when` expression:
+    @code
+    (when test 
+      exprs)
+    @end
+
+    `cond` expression: 
+    @code
+    (cond 
+      test1 expr1 
+      test2 expr2 
+      :else else-case)
+    @end
+
+  ** namespace
+
+    At the start of a file, a namespace must be provided. This system 
+    is very similar to Clojure's.
+
+    @code
+    (ns foo)
+    @end
+
+    A namespace acts like a tree, allowing one to organize code 
+    like a directory tree
+
+    @code
+    (ns foo.bar)
+    @end
+
+    To use functions or variables, import them 
+
+    @code
+    (ns foo 
+      (:import [foo.bar :as bar :refer [f]]))
+    @end
+
+    In the above case, we import `foo.bar`, give it an alias 
+    and dirctly import `f`.
+
+    @code
+    (f args)
+    (bar/other-fn)
+    (foo.bar/another-fn)
+    @end
+
+    As `f` is directly imported, one does not need to write the 
+    namespace. One can call functions based on the raw name 
+    of the namespace or the alias.
+
+  ** type system
+    
+    The type system of Unit is classified as the following:
+
+    @code
+    Any/
+      ├── Num/
+      │   ├── AutoNum
+      │   ├── Integer/
+      │   │    ├── Signed/
+      │   │    │   ├── i128
+      │   │    │   ├── i64
+      │   │    │   ├── i32 
+      │   │    │   ├── i16
+      │   │    │   └── i8 
+      │   │    └── Unsigned/
+      │   │        ├── u128
+      │   │        ├── u64
+      │   │        ├── u32
+      │   │        ├── i16
+      │   │        └── u8
+      │   └── Float/
+      │        ├── f64
+      │        ├── f32
+      │        └── f16
+      ├── Coll/
+      │   ├── List
+      │   ├── Vector
+      │   ├── Map
+      │   └── Queue
+      ├── String
+      ├── Bool
+      └── Atom
+    @end
+
+
+    @code
+    (defprotocol Animal
+      (: talk [this -> String])
+      (: move [this -> Vector]))
+
+    (defstruct Cat [Animal]
+      {:name String
+       :age f16
+       :pos (Vector i8)}
+
+      (talk [this]
+        "meow")
+
+      (move [this]
+        (let [pos (:pos this)]
+          [(first pos) (succ (sec pos))])))
+
+    (def paul
+      (Cat {:name "paul"
+            :age 0.5
+            :pos [1 1]}))
+
+    (talk paul)
+    @end
+
+    In order to implement a protocol for an already defined structure,
+
+    @code 
+    (defstruct Cat []
+      {:name String
+       :age f16
+       :pos (Vector i8)})
+
+    (attach-protocol Cat 
+      Animal 
+      (talk [this] (todo "impl this"))
+      (move [this] (todo "impl this")))
+    @end
+
+    To use a protocol as a type:
+
+    @code
+    (: foo [Animal -> String])
+    (defn foo [a] (todo "impl this"))
+    @end
+
+    Said function is polymorphic and can take any `Animal`.
+
+  *** carrier type
+
+    Carrier types are a type that takes in another type.
+
+    @code
+    (defstruct Box
+      #{T U}
+      {:value T
+       :value2 U})
+
+    (Box i8 String ; base on order of T and U
+      {:value 1
+       :value2 "hi"})
+
+    (Box #{T i8 ; spec type explicitly
+           U String}
+      {:value 1 
+       :value2 "hi"})
+    @end
+
+  *** generic
+    
+    Generics are used for carriers that you do not know the inner type of.
+
+    @code 
+    (: extract [:t => (Box :t) -> :t])
+    (defn extract [box]
+      (:value box))
+    @end
+
+    We declare a `T`, which is filled with a real type during compile time.
+
+    @code 
+    (: extract [(: Type1 Type2 :t) => :t -> :t])
+    (defn extract [box]
+      (:value box))
+    @end
+
+    Protocols can be directly used as function arguments 
+    if you do not care about it's inner type.
+    @code 
+    (defprotocol Foo)
+
+    (: do-stuff [Foo -> Foo])
+    @end
+
+  *** union types
+
+    Unions may be used to group types together.
+
+    @code
+    (def Foo (:u i32 i64))
+    @end

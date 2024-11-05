@@ -3,7 +3,6 @@ package parser
 Data :: union {
 	String,
 	Auto_Num,
-	Function,
 	Bool,
 	Atom,
 	Reference,
@@ -11,12 +10,17 @@ Data :: union {
 	Scope_End,
 	Vector_Start,
 	Vector_End,
-  Map_Start,
-  Map_End,
+	Map_Start,
+	Map_End,
 	Integer,
 	Float,
 	Prog_Start,
-  Prog_End,
+	Prog_End,
+}
+
+Function :: struct { // type env
+	namespace: string,
+	name:      string,
 }
 
 String :: struct {
@@ -25,10 +29,6 @@ String :: struct {
 
 Auto_Num :: struct {
 	data: i64,
-}
-
-Function :: struct {
-	name: string,
 }
 
 Bool :: struct {
