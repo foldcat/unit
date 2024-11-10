@@ -1,4 +1,4 @@
-package stack
+package utility
 
 import "core:fmt"
 import "core:mem"
