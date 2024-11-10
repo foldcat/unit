@@ -1,5 +1,7 @@
 package utility
 
+// standalone stack implementation https://github.com/foldcat/ostack
+
 import "core:fmt"
 import "core:mem"
 import "core:os"
