@@ -1,6 +1,6 @@
 package parser
 
-import "../stack"
+import "../utility"
 import "core:bufio"
 import "core:fmt"
 import "core:log"
@@ -53,8 +53,8 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 	// must be a better way to do it...
 	file_name := file_chunks[len(file_chunks) - 1]
 
-	call_stack, _ := stack.make_stack(^Cons, aalloc)
-	defer stack.destroy_stack(call_stack, aalloc)
+	call_stack, _ := utility.make_stack(^Cons, aalloc)
+	defer utility.destroy_stack(call_stack, aalloc)
 
 	// imagine representing the ast with cons cells...
 
@@ -99,33 +99,33 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 		#partial switch item in raw_item {
 		// dry enjoyers im shambles now
 		case Scope_Start:
-			// append to callstack 
+			// append to callstack
 			scope: Data = new(Scope_Start, aalloc)^
 			new_exp := new_clone(Cons{item = scope}, aalloc)
 			res := new_clone(Cons{item = new_exp}, aalloc)
-			stack.stack_push(call_stack, res)
+			utility.stack_push(call_stack, res)
 			current_cell.next = res
 			current_cell = new_exp
 		case Vector_Start:
-			// append to callstack 
+			// append to callstack
 			scope: Data = new(Vector_Start, aalloc)^
 			new_exp := new_clone(Cons{item = scope}, aalloc)
 			res := new_clone(Cons{item = new_exp}, aalloc)
-			stack.stack_push(call_stack, res)
+			utility.stack_push(call_stack, res)
 			current_cell.next = res
 			current_cell = new_exp
 		case Map_Start:
 			scope: Data = new(Map_Start, aalloc)^
 			new_exp := new_clone(Cons{item = scope}, aalloc)
 			res := new_clone(Cons{item = new_exp}, aalloc)
-			stack.stack_push(call_stack, res)
+			utility.stack_push(call_stack, res)
 			current_cell.next = res
 			current_cell = new_exp
 		case Map_End:
 			scope: Data = new(Map_End, aalloc)^
 			new_exp := new_clone(Cons{item = scope}, aalloc)
 			current_cell.next = new_exp
-			res, ok := stack.stack_pop(call_stack)
+			res, ok := utility.stack_pop(call_stack)
 			if !ok {
 				panic("unmatched map")
 			}
@@ -134,7 +134,7 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 			scope: Data = new(Scope_End, aalloc)^
 			new_exp := new_clone(Cons{item = scope}, aalloc)
 			current_cell.next = new_exp
-			res, ok := stack.stack_pop(call_stack)
+			res, ok := utility.stack_pop(call_stack)
 			if !ok {
 				panic("unmatched parenthesis")
 			}
@@ -143,7 +143,7 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 			scope: Data = new(Vector_End, aalloc)^
 			new_exp := new_clone(Cons{item = scope}, aalloc)
 			current_cell.next = new_exp
-			res, ok := stack.stack_pop(call_stack)
+			res, ok := utility.stack_pop(call_stack)
 			if !ok {
 				panic("unmatched vector")
 			}
@@ -156,7 +156,7 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 		}
 	}
 
-	if _, ok := stack.stack_peek(call_stack); ok {
+	if _, ok := utility.stack_peek(call_stack); ok {
 		panic("unmatched parenthesis")
 	}
 

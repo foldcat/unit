@@ -3,7 +3,7 @@ package analyzer
 // analyzer type checks the AST, hopefully it works
 
 import parser "../parser"
-import stack "../stack"
+import stack "../utility"
 import "core:fmt"
 
 // shouldn't do it recursively anymore

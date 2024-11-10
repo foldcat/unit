@@ -11,7 +11,7 @@ import "core:strings"
 import "irgen"
 import "llvm"
 import "parser"
-import "stack"
+import "utility"
 
 
 main :: proc() {
