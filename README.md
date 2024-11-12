@@ -14,9 +14,11 @@ It is written in Odin and aims to target the LLVM platform.
 Unit is far from finished and is currently a prototype, which 
 only the parser is partially implemented.
 
-To test out the prototype parser: 
-
+# building and running
 ```bash
-./build.sh # build unit
-./unit test.unit # run it with a file
+odin build . -debug # debug build 
+odin build . # release build
+
+# now execute it
+./unit file.unit
 ```
