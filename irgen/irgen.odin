@@ -14,7 +14,7 @@ gen_ir :: proc(ast: parser.Cons, alloc := context.allocator) {
 	#partial switch item in ast.item {
 	case parser.Data:
 		#partial switch prog_start in item {
-		case parser.Prog_Start:
+		case parser.Prog:
 			nm, err := strings.clone_to_cstring(prog_start.filename, alloc)
 			if err != os.ERROR_NONE {
 				panic("module name cloning to cstring failed")

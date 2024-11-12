@@ -8,23 +8,36 @@ import vmem "core:mem/virtual"
 import "core:os"
 import "core:strings"
 
+// the plan 
+// Cons {
+//  item: Item union {
+//    ^Cons, // nest
+//    Data
+//    }
+// }
+//  next: ^Cons
+//  position: Position
+// }
+
+Position :: [2]i64
+
+
 Item :: union {
 	^Cons,
 	Data,
 }
 
-
 Cons :: struct {
 	item: Item, // car
 	next: ^Cons, // cdr
+	pos:  Position,
 }
-
 
 // don't have a lot of idea what I am doing
 // but im sure i will figure something out
 
 // insert Prog_End at the end of the AST
-insert_progend :: proc(ast: ^Cons, aalloc := context.allocator) {
+insert_progend :: proc(ast: ^Cons) {
 	current := ast
 	for {
 		if current.next != nil {
@@ -33,124 +46,108 @@ insert_progend :: proc(ast: ^Cons, aalloc := context.allocator) {
 			break
 		}
 	}
-	prog_end: Data = new(Prog_End, aalloc)^
-	end_node := new_clone(Cons{item = prog_end}, aalloc)
+	prog_end: Data = new_clone(Prog{is_ending = true})^
+	end_node := new_clone(Cons{item = prog_end})
 	current.next = end_node
 }
 
+// build a Cons carrying Data
+make_cons :: proc($T: typeid) -> ^Cons {
+	data: Data = new(T)^
+	new_exp := new_clone(Cons{item = data})
+	return new_clone(Cons{item = new_exp})
+}
+
 // parse a file into an AST
-parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
+parse :: proc(path: string) -> ^Cons {
 	f, ferr := os.open(path)
 	if ferr != 0 {
 		panic("failed to open file")
 	}
 	defer os.close(f)
 
-	file_chunks, err := strings.split(path, "/", aalloc)
+	file_chunks, err := strings.split(path, "/")
 	if err != os.ERROR_NONE {
 		panic("split string allocation error")
 	}
 	// must be a better way to do it...
 	file_name := file_chunks[len(file_chunks) - 1]
 
-	call_stack, _ := utility.make_stack(^Cons, aalloc)
-	defer utility.destroy_stack(call_stack, aalloc)
+	call_stack, _ := utility.make_stack(^Cons)
+	defer utility.destroy_stack(call_stack)
 
 	// imagine representing the ast with cons cells...
 
 	// when type inference is confused
-	p_start: Data = new_clone(Prog_Start{filename = file_name}, aalloc)^
-	ast := new_clone(Cons{item = p_start}, aalloc)
+	p_start: Data = Prog {
+		filename = file_name,
+	}
+	ast := new_clone(Cons{item = p_start})
 
 	current_cell: ^Cons = ast
-	current_buffer := new([dynamic]rune, aalloc)
+	current_buffer := new([dynamic]rune)
 	defer delete(current_buffer^)
 
-	splitted := new([dynamic]Data, aalloc)
+	splitted := new([dynamic]Data)
 	defer delete(splitted^)
 
 	r: bufio.Reader
 	buffer: [1024]byte
 	bufio.reader_init_with_buf(&r, os.stream_from_handle(f), buffer[:])
 
+	// i love how odin lets you array.x array.y
+	scanner_state: Position
+
 	for {
-		line, err := bufio.reader_read_string(&r, '\n', aalloc)
+		line, err := bufio.reader_read_string(&r, '\n')
+
+		scanner_state.y += 1
+
 		if err != nil {
-			break
+			break // either eof or something else
 		}
-		defer delete(line, aalloc)
+		defer delete(line)
+
 		line = strings.trim_right(line, "\r")
 
-		current := split_sexp(line, aalloc)
+		log.debugf("current line: %s", line)
+
+		current := split_sexp(line, &scanner_state)
 		defer delete(current^)
 
 		for item in current {
 			append(splitted, item)
 		}
-
-		log.debugf("current line: %s", line)
-		log.debug(current)
 	}
 
+	log.debug("final parsed result:")
 	log.debug(splitted)
 
 
 	for raw_item in splitted {
 		#partial switch item in raw_item {
-		// dry enjoyers im shambles now
-		case Scope_Start:
+		case Scope:
 			// append to callstack
-			scope: Data = new(Scope_Start, aalloc)^
-			new_exp := new_clone(Cons{item = scope}, aalloc)
-			res := new_clone(Cons{item = new_exp}, aalloc)
-			utility.stack_push(call_stack, res)
-			current_cell.next = res
-			current_cell = new_exp
-		case Vector_Start:
-			// append to callstack
-			scope: Data = new(Vector_Start, aalloc)^
-			new_exp := new_clone(Cons{item = scope}, aalloc)
-			res := new_clone(Cons{item = new_exp}, aalloc)
-			utility.stack_push(call_stack, res)
-			current_cell.next = res
-			current_cell = new_exp
-		case Map_Start:
-			scope: Data = new(Map_Start, aalloc)^
-			new_exp := new_clone(Cons{item = scope}, aalloc)
-			res := new_clone(Cons{item = new_exp}, aalloc)
-			utility.stack_push(call_stack, res)
-			current_cell.next = res
-			current_cell = new_exp
-		case Map_End:
-			scope: Data = new(Map_End, aalloc)^
-			new_exp := new_clone(Cons{item = scope}, aalloc)
-			current_cell.next = new_exp
-			res, ok := utility.stack_pop(call_stack)
-			if !ok {
-				panic("unmatched map")
+			if !item.is_ending {
+				scope: Data = new_clone(item)^
+				new_exp := new_clone(Cons{item = scope})
+				res := new_clone(Cons{item = new_exp})
+				utility.stack_push(call_stack, res)
+				current_cell.next = res
+				current_cell = new_exp
+			} else {
+				scope: Data = new_clone(item)^
+				new_exp := new_clone(Cons{item = scope})
+				current_cell.next = new_exp
+				res, ok := utility.stack_pop(call_stack)
+				if !ok {
+					panic("unmatched stuff")
+				}
+				current_cell = res
 			}
-			current_cell = res
-		case Scope_End:
-			scope: Data = new(Scope_End, aalloc)^
-			new_exp := new_clone(Cons{item = scope}, aalloc)
-			current_cell.next = new_exp
-			res, ok := utility.stack_pop(call_stack)
-			if !ok {
-				panic("unmatched parenthesis")
-			}
-			current_cell = res
-		case Vector_End:
-			scope: Data = new(Vector_End, aalloc)^
-			new_exp := new_clone(Cons{item = scope}, aalloc)
-			current_cell.next = new_exp
-			res, ok := utility.stack_pop(call_stack)
-			if !ok {
-				panic("unmatched vector")
-			}
-			current_cell = res
 		case:
 			// log.debug(res)
-			res := new_clone(Cons{item = item}, aalloc)
+			res := new_clone(Cons{item = item})
 			current_cell.next = res
 			current_cell = res
 		}
@@ -160,7 +157,7 @@ parse :: proc(path: string, aalloc := context.allocator) -> ^Cons {
 		panic("unmatched parenthesis")
 	}
 
-	insert_progend(ast, aalloc)
+	insert_progend(ast)
 
 	return ast
 }

@@ -6,19 +6,14 @@ Data :: union {
 	Bool,
 	Atom,
 	Reference,
-	Scope_Start,
-	Scope_End,
-	Vector_Start,
-	Vector_End,
-	Map_Start,
-	Map_End,
+	Scope,
 	Integer,
 	Float,
-	Prog_Start,
-	Prog_End,
+	Prog,
 }
 
-Function :: struct { // type env
+Function :: struct {
+	// type env
 	namespace: string,
 	name:      string,
 }
@@ -52,17 +47,19 @@ Float :: struct {
 	data: f64,
 }
 
-// these are empty
-Scope_Start :: struct {}
-Scope_End :: struct {}
-
-Vector_Start :: struct {}
-Vector_End :: struct {}
-
-Map_Start :: struct {}
-Map_End :: struct {}
-
-Prog_Start :: struct {
-	filename: string,
+Scope_Type :: enum {
+	Scope,
+	Vector,
+	Map,
 }
-Prog_End :: struct {}
+
+Scope :: struct {
+	type:      Scope_Type,
+	is_ending: bool,
+}
+
+
+Prog :: struct {
+	filename:  string,
+	is_ending: bool,
+}

@@ -13,6 +13,23 @@ import "llvm"
 import "parser"
 import "utility"
 
+compile_job :: proc() {
+	file := os.args[1]
+	log.infof("parsing %s", file)
+
+	arena := vmem.Arena{}
+	_err := vmem.arena_allocator(&arena)
+	aalloc := vmem.arena_allocator(&arena)
+	defer vmem.arena_destroy(&arena) // won't need it more than once
+
+	context.allocator = aalloc // just in case
+
+	ast := parser.parse(file)
+	log.info("===begin AST===")
+	parser.print_ast(ast)
+	log.info("===end AST===")
+}
+
 
 main :: proc() {
 	logger := log.create_console_logger(log.Level.Info)
@@ -51,16 +68,5 @@ main :: proc() {
 		os.exit(0)
 	}
 
-	file := os.args[1]
-	log.infof("parsing %s", file)
-
-	arena := vmem.Arena{}
-	_err := vmem.arena_allocator(&arena)
-	aalloc := vmem.arena_allocator(&arena)
-	defer vmem.arena_destroy(&arena) // won't need it more than once
-
-	ast := parser.parse(file, aalloc)
-	log.info("===begin AST===")
-	parser.print_ast(ast)
-	log.info("===end AST===")
+	compile_job()
 }
