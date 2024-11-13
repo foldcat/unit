@@ -96,10 +96,14 @@ to_atom :: proc(target: string) -> (result: Data, is_valid := false) {
 
 clear_and_append_reference :: proc(
 	buffer: ^[dynamic]rune,
+	pos_buffer: ^Position,
 	scanner_state: ^Position,
 	result: ^#soa[dynamic]Value,
 ) {
 	defer clear(buffer)
+	defer pos_buffer.x = scanner_state.x + 1
+
+	log.debug("pos buffer", pos_buffer)
 
 	if len(buffer^) != 0 {
 		str := utf8.runes_to_string(buffer^[:]) // gets freed, i hope
@@ -108,27 +112,24 @@ clear_and_append_reference :: proc(
 		if ok { 	// if it is a number
 			// TODO: refractor
 			// ^)^ us very ugly coupled with the Value constructor
-			append_soa(result, Value{data = res, pos = new_clone(scanner_state^)^})
+			append_soa(result, Value{data = res, pos = new_clone(pos_buffer^)^})
 			return
 		}
 
 		res, ok = to_atom(str)
 		if ok {
-			append_soa(result, Value{data = res, pos = new_clone(scanner_state^)^})
+			append_soa(result, Value{data = res, pos = new_clone(pos_buffer^)^})
 			return
 		}
 
 		// boolean solution 
 		switch str {
 		case "true":
-			append_soa(result, Value{data = Bool{data = true}, pos = new_clone(scanner_state^)^})
+			append_soa(result, Value{data = Bool{data = true}, pos = new_clone(pos_buffer^)^})
 		case "false":
-			append_soa(result, Value{data = Bool{data = false}, pos = new_clone(scanner_state^)^})
+			append_soa(result, Value{data = Bool{data = false}, pos = new_clone(pos_buffer^)^})
 		case:
-			append_soa(
-				result,
-				Value{data = Reference{name = str}, pos = new_clone(scanner_state^)^},
-			)
+			append_soa(result, Value{data = Reference{name = str}, pos = new_clone(pos_buffer^)^})
 		}
 		log.debug(result)
 	}
@@ -136,23 +137,27 @@ clear_and_append_reference :: proc(
 
 split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic]Value) {
 
-	scanner_state.x = 0
+	scanner_state.x = 1
 
 	// literally everything is on the heap now
 	// this surely won't bite me in the back
 	buffer := [dynamic]rune{}
 	defer delete(buffer) // cleanup
 
+	// keeps the last position
+	position_buffer := Position{1, scanner_state.y}
+
 	// something is in the buffer but new line is reached 
-	defer clear_and_append_reference(&buffer, scanner_state, &result)
+	defer clear_and_append_reference(&buffer, &position_buffer, scanner_state, &result)
 
 	state: Split_State = Split_State.in_atom
 	is_escaped := false
 
 	// parses a single line
 
+
 	for char in s {
-		scanner_state.x += 1
+		defer scanner_state.x += 1
 
 		switch state {
 		case Split_State.in_atom:
@@ -205,7 +210,7 @@ split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic
 			case ' ':
 				// clear and append if it is space
 				log.debug("the buffer", buffer)
-				clear_and_append_reference(&buffer, scanner_state, &result)
+				clear_and_append_reference(&buffer, &position_buffer, scanner_state, &result)
 				continue
 			case:
 				// build the buffer
@@ -213,8 +218,12 @@ split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic
 				continue
 			}
 
-			clear_and_append_reference(&buffer, scanner_state, &result)
-			append_soa(&result, Value{data = append_target, pos = new_clone(scanner_state^)^})
+			clear_and_append_reference(&buffer, &position_buffer, scanner_state, &result)
+
+			past_pos_buffer := new_clone(position_buffer)
+			past_pos_buffer.x -= 1
+
+			append_soa(&result, Value{data = append_target, pos = past_pos_buffer^})
 			log.debug("current", result)
 
 		case Split_State.in_str:
@@ -239,7 +248,7 @@ split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic
 				} else if char != '"' {
 					append(&buffer, char)
 				} else {
-					clear_and_append_string(&buffer, scanner_state, &result)
+					clear_and_append_string(&buffer, &position_buffer, &result)
 					state = Split_State.in_atom
 				}
 			}
