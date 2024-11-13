@@ -22,7 +22,7 @@ compile_job :: proc() {
 	aalloc := vmem.arena_allocator(&arena)
 	defer vmem.arena_destroy(&arena) // won't need it more than once
 
-	context.allocator = aalloc // just in case
+	context.allocator = aalloc // use the arena
 
 	ast := parser.parse(file)
 	log.info("===begin AST===")

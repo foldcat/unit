@@ -1,6 +1,7 @@
 package parser
 
 import "core:fmt"
+import "core:log"
 
 print_tabs :: proc(nest_count: i8) {
 	for _ in 0 ..< nest_count {
@@ -8,74 +9,79 @@ print_tabs :: proc(nest_count: i8) {
 	}
 }
 
-print_scope :: proc(scope: Scope) {
+Cons_Value :: struct {
+	data: Item,
+	pos:  Position,
+}
+
+print_data :: proc(data: Cons_Value) {
+	fmt.println(data.data, "at", data.pos)
+
+}
+
+print_pos :: proc(s: string, pos: Position) {
+	fmt.println(s, "at", pos)
+}
+
+print_scope :: proc(scope: Scope, pos: Position) {
 	switch scope.is_ending {
 	case false:
 		switch scope.type {
 		case .Scope:
-			fmt.println("(")
+			print_pos("(", pos)
 		case .Vector:
-			fmt.println("[")
+			print_pos("[", pos)
 		case .Map:
-			fmt.println("{")
+			print_pos("{", pos)
 		}
 	case true:
 		switch scope.type {
 		case .Scope:
-			fmt.println(")")
+			print_pos(")", pos)
 		case .Vector:
-			fmt.println("]")
+			print_pos("]", pos)
 		case .Map:
-			fmt.println("}")
+			print_pos("}", pos)
 		}
 	}
 
 }
 
+
 print_ast :: proc(ast: ^Cons, nest_level: i8 = 0) {
-	// soon might have to use a trampoline at this rate 
-	tree := [dynamic]Item{}
+	// need to rethink about this 
+	// i am repacking data I just packed
+	tree := #soa[dynamic]Cons_Value{}
 	defer delete(tree)
 
 	buffer: ^Cons = ast
 
-	// log.debug("printing ast called")
-	// log.debug(buffer)
-
 	for { 	// split everything and push into tree
 		if buffer.next == nil {
-			// log.debug("ast.next nil")
-			append(&tree, buffer.item)
+			append_soa(&tree, Cons_Value{data = buffer.item, pos = buffer.pos})
 			break
 		} else {
-			// log.debug("item")
-			// log.debug(buffer)
-			// log.debug(ast.next)
-			append(&tree, buffer.item)
+			append_soa(&tree, Cons_Value{data = buffer.item, pos = buffer.pos})
 			buffer = buffer.next
 		}
 	}
-	// log.debug(tree)
 
 	// now traverse it 
 	for raw_item in tree {
-		// log.debug(item)
-		#partial switch item in raw_item {
+		#partial switch item in raw_item.data {
 		case ^Cons:
 			print_ast(item, nest_level + 1)
 		case Data:
-			// log.debug("got syntax")
 			#partial switch data in item {
 			case Scope:
 				print_tabs(nest_level - 1)
-				print_scope(data)
+				print_scope(data, raw_item.pos)
 			case Prog:
 			// do nothing
 			case:
 				print_tabs(nest_level)
-				fmt.println(item)
+				print_data(raw_item)
 			}
 		}
 	}
-	// print_tabs(nest_level)
 }

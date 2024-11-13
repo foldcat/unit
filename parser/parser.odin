@@ -85,11 +85,9 @@ parse :: proc(path: string) -> ^Cons {
 	ast := new_clone(Cons{item = p_start})
 
 	current_cell: ^Cons = ast
-	current_buffer := new([dynamic]rune)
-	defer delete(current_buffer^)
 
-	splitted := new([dynamic]Data)
-	defer delete(splitted^)
+	splitted: #soa[dynamic]Value
+	defer delete(splitted)
 
 	r: bufio.Reader
 	buffer: [1024]byte
@@ -113,31 +111,36 @@ parse :: proc(path: string) -> ^Cons {
 		log.debugf("current line: %s", line)
 
 		current := split_sexp(line, &scanner_state)
-		defer delete(current^)
+		defer delete(current)
+
+		log.debug("current splitted line", current)
 
 		for item in current {
-			append(splitted, item)
+			log.debug("appending", item)
+			append_soa(&splitted, item)
 		}
 	}
 
-	log.debug("final parsed result:")
+	log.debug("final parsed array:")
 	log.debug(splitted)
 
 
 	for raw_item in splitted {
-		#partial switch item in raw_item {
+		#partial switch item in raw_item.data {
 		case Scope:
 			// append to callstack
 			if !item.is_ending {
 				scope: Data = new_clone(item)^
-				new_exp := new_clone(Cons{item = scope})
+				// need to rethink about this
+				// log.debug("pos", raw_item.pos)
+				new_exp := new_clone(Cons{item = scope, pos = raw_item.pos})
 				res := new_clone(Cons{item = new_exp})
 				utility.stack_push(call_stack, res)
 				current_cell.next = res
 				current_cell = new_exp
 			} else {
 				scope: Data = new_clone(item)^
-				new_exp := new_clone(Cons{item = scope})
+				new_exp := new_clone(Cons{item = scope, pos = raw_item.pos})
 				current_cell.next = new_exp
 				res, ok := utility.stack_pop(call_stack)
 				if !ok {
@@ -147,7 +150,7 @@ parse :: proc(path: string) -> ^Cons {
 			}
 		case:
 			// log.debug(res)
-			res := new_clone(Cons{item = item})
+			res := new_clone(Cons{item = item, pos = raw_item.pos})
 			current_cell.next = res
 			current_cell = res
 		}
