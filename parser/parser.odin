@@ -21,6 +21,11 @@ import "core:strings"
 
 Position :: [2]i64
 
+Locator :: struct {
+	start: Position,
+	end:   Position,
+}
+
 
 Item :: union {
 	^Cons,
@@ -30,7 +35,7 @@ Item :: union {
 Cons :: struct {
 	item: Item, // car
 	next: ^Cons, // cdr
-	pos:  Position,
+	pos:  Locator,
 }
 
 // don't have a lot of idea what I am doing

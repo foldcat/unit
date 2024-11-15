@@ -6,6 +6,8 @@ import "core:strconv"
 import "core:strings"
 import "core:unicode/utf8"
 
+// the below code needs refractoring
+
 Split_State :: enum {
 	in_str,
 	in_atom,
@@ -14,19 +16,34 @@ Split_State :: enum {
 // data is bundled with it's position
 Value :: struct {
 	data: Data,
-	pos:  Position,
+	pos:  Locator,
+}
+
+// bundled state
+Tokenizer_State :: struct {
+	scanner_state:   ^Position,
+	position_buffer: ^Position,
+	buffer:          ^[dynamic]rune,
+	result:          ^#soa[dynamic]Value,
+	split_state:     Split_State,
+	is_escaped:      bool,
+}
+
+make_value :: proc(data: Data, position_buffer: ^Position, scanner_state: ^Position) -> Value {
+	return Value {
+		data = data,
+		pos = Locator{start = new_clone(position_buffer^)^, end = new_clone(scanner_state^)^},
+	}
+
 }
 
 // could use some parapoly
 
-clear_and_append_string :: proc(
-	buffer: ^[dynamic]rune,
-	scanner_state: ^Position,
-	result: ^#soa[dynamic]Value,
-) {
+clear_and_append_string :: proc(state: Tokenizer_State) {
+	using state
 	if len(buffer^) != 0 {
 		str := utf8.runes_to_string(buffer^[:]) // maybe cause use after free?
-		append_soa(result, Value{data = String{data = str}, pos = new_clone(scanner_state^)^})
+		append_soa(result, make_value(String{data = str}, position_buffer, scanner_state))
 		clear(buffer)
 	}
 }
@@ -94,42 +111,55 @@ to_atom :: proc(target: string) -> (result: Data, is_valid := false) {
 	return
 }
 
-clear_and_append_reference :: proc(
-	buffer: ^[dynamic]rune,
-	pos_buffer: ^Position,
-	scanner_state: ^Position,
-	result: ^#soa[dynamic]Value,
-) {
-	defer clear(buffer)
-	defer pos_buffer.x = scanner_state.x + 1
+CAF_Caller_Loc :: enum {
+	normal,
+	space,
+}
 
-	log.debug("pos buffer", pos_buffer)
+clear_and_append_reference :: proc(state: Tokenizer_State, loc: CAF_Caller_Loc) {
+	using state
+	defer clear(buffer)
+	defer position_buffer.x = scanner_state.x + 1
+
+	start_pos := new_clone(position_buffer)^
+	end_pos := new_clone(scanner_state)^
+
+	switch loc {
+	case .normal:
+		start_pos.x += 1
+	case .space:
+	}
+
+	log.debug("pos buffer", start_pos)
 
 	if len(buffer^) != 0 {
+
+		if len(buffer^) > 1 {
+			end_pos.x -= 1
+		}
+
 		str := utf8.runes_to_string(buffer^[:]) // gets freed, i hope
 
 		res, ok := to_number(str)
 		if ok { 	// if it is a number
-			// TODO: refractor
-			// ^)^ us very ugly coupled with the Value constructor
-			append_soa(result, Value{data = res, pos = new_clone(pos_buffer^)^})
+			append_soa(result, make_value(res, start_pos, end_pos))
 			return
 		}
 
 		res, ok = to_atom(str)
 		if ok {
-			append_soa(result, Value{data = res, pos = new_clone(pos_buffer^)^})
+			append_soa(result, make_value(res, start_pos, end_pos))
 			return
 		}
 
 		// boolean solution 
 		switch str {
 		case "true":
-			append_soa(result, Value{data = Bool{data = true}, pos = new_clone(pos_buffer^)^})
+			append_soa(result, make_value(Bool{data = true}, start_pos, end_pos))
 		case "false":
-			append_soa(result, Value{data = Bool{data = false}, pos = new_clone(pos_buffer^)^})
+			append_soa(result, make_value(Bool{data = false}, start_pos, end_pos))
 		case:
-			append_soa(result, Value{data = Reference{name = str}, pos = new_clone(pos_buffer^)^})
+			append_soa(result, make_value(Reference{name = str}, start_pos, end_pos))
 		}
 		log.debug(result)
 	}
@@ -138,28 +168,23 @@ clear_and_append_reference :: proc(
 split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic]Value) {
 
 	scanner_state.x = 1
-
-	// literally everything is on the heap now
-	// this surely won't bite me in the back
-	buffer := [dynamic]rune{}
-	defer delete(buffer) // cleanup
-
-	// keeps the last position
-	position_buffer := Position{1, scanner_state.y}
+	pos_buf := Position{1, scanner_state.y}
+	state := Tokenizer_State {
+		scanner_state   = scanner_state,
+		position_buffer = &pos_buf,
+		split_state     = Split_State.in_atom,
+		buffer          = new([dynamic]rune),
+		result          = &result,
+		is_escaped      = false,
+	}
 
 	// something is in the buffer but new line is reached 
-	defer clear_and_append_reference(&buffer, &position_buffer, scanner_state, &result)
-
-	state: Split_State = Split_State.in_atom
-	is_escaped := false
-
-	// parses a single line
-
+	defer clear_and_append_reference(state, CAF_Caller_Loc.normal)
 
 	for char in s {
 		defer scanner_state.x += 1
 
-		switch state {
+		switch state.split_state {
 		case Split_State.in_atom:
 			if char == ',' {
 				// comma is ignored
@@ -170,7 +195,7 @@ split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic
 
 			switch char {
 			case '"':
-				state = Split_State.in_str
+				state.split_state = Split_State.in_str
 			case ';':
 				// comment
 				return
@@ -209,47 +234,47 @@ split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic
 				}
 			case ' ':
 				// clear and append if it is space
-				log.debug("the buffer", buffer)
-				clear_and_append_reference(&buffer, &position_buffer, scanner_state, &result)
+				log.debug("the buffer", state.buffer)
+				clear_and_append_reference(state, CAF_Caller_Loc.space)
 				continue
 			case:
 				// build the buffer
-				append(&buffer, char)
+				append(state.buffer, char)
 				continue
 			}
 
-			clear_and_append_reference(&buffer, &position_buffer, scanner_state, &result)
+			clear_and_append_reference(state, CAF_Caller_Loc.normal)
 
-			past_pos_buffer := new_clone(position_buffer)
+			past_pos_buffer := new_clone(state.position_buffer^)
 			past_pos_buffer.x -= 1
 
-			append_soa(&result, Value{data = append_target, pos = past_pos_buffer^})
+			append_soa(&result, make_value(append_target, past_pos_buffer, scanner_state))
 			log.debug("current", result)
 
 		case Split_State.in_str:
 			// append everything till next "
 			if char == '\\' {
-				if !is_escaped {
-					is_escaped = true
+				if !state.is_escaped {
+					state.is_escaped = true
 					continue
 				}
 			}
 
-			if is_escaped {
+			if state.is_escaped {
 				if char == ' ' {
-					is_escaped = false
-					append(&buffer, char)
+					state.is_escaped = false
+					append(state.buffer, char)
 				} else {
-					append(&buffer, char)
+					append(state.buffer, char)
 				}
 			} else {
 				if char == '\n' {
 					panic("unclosed \"")
 				} else if char != '"' {
-					append(&buffer, char)
+					append(state.buffer, char)
 				} else {
-					clear_and_append_string(&buffer, &position_buffer, &result)
-					state = Split_State.in_atom
+					clear_and_append_string(state)
+					state.split_state = Split_State.in_atom
 				}
 			}
 		}

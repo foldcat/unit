@@ -2,6 +2,7 @@ package parser
 
 import "core:fmt"
 import "core:log"
+import vmem "core:mem/virtual"
 
 print_tabs :: proc(nest_count: i8) {
 	for _ in 0 ..< nest_count {
@@ -11,19 +12,19 @@ print_tabs :: proc(nest_count: i8) {
 
 Cons_Value :: struct {
 	data: Item,
-	pos:  Position,
+	pos:  Locator,
 }
 
 print_data :: proc(data: Cons_Value) {
-	fmt.println(data.data, "at", data.pos)
+	fmt.println(data.data, "from", data.pos.start, "to", data.pos.end)
 
 }
 
-print_pos :: proc(s: string, pos: Position) {
-	fmt.println(s, "at", pos)
+print_pos :: proc(s: string, pos: Locator) {
+	fmt.println(s, "from", pos.start, "to", pos.end)
 }
 
-print_scope :: proc(scope: Scope, pos: Position) {
+print_scope :: proc(scope: Scope, pos: Locator) {
 	switch scope.is_ending {
 	case false:
 		switch scope.type {
@@ -49,6 +50,12 @@ print_scope :: proc(scope: Scope, pos: Position) {
 
 
 print_ast :: proc(ast: ^Cons, nest_level: i8 = 0) {
+	arena := vmem.Arena{}
+	_err := vmem.arena_allocator(&arena)
+	aalloc := vmem.arena_allocator(&arena)
+	defer vmem.arena_destroy(&arena)
+	context.allocator = aalloc
+
 	// need to rethink about this 
 	// i am repacking data I just packed
 	tree := #soa[dynamic]Cons_Value{}
