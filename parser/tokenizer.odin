@@ -29,12 +29,24 @@ Tokenizer_State :: struct {
 	is_escaped:      bool,
 }
 
-make_value :: proc(data: Data, position_buffer: ^Position, scanner_state: ^Position) -> Value {
+make_value_state :: proc(data: Data, state: Tokenizer_State) -> Value {
+	using state
 	return Value {
 		data = data,
 		pos = Locator{start = new_clone(position_buffer^)^, end = new_clone(scanner_state^)^},
 	}
 
+}
+
+make_value_position :: proc(data: Data, position_buffer: ^Position, scanner_state: ^Position) -> Value {
+	return Value {
+		data = data,
+		pos = Locator{start = new_clone(position_buffer^)^, end = new_clone(scanner_state^)^},
+	}
+}
+
+make_value :: proc {
+  make_value_state,  make_value_position
 }
 
 // could use some parapoly
@@ -43,7 +55,7 @@ clear_and_append_string :: proc(state: Tokenizer_State) {
 	using state
 	if len(buffer^) != 0 {
 		str := utf8.runes_to_string(buffer^[:]) // maybe cause use after free?
-		append_soa(result, make_value(String{data = str}, position_buffer, scanner_state))
+		append_soa(result, make_value(String{data = str}, state))
 		clear(buffer)
 	}
 }
@@ -114,6 +126,7 @@ to_atom :: proc(target: string) -> (result: Data, is_valid := false) {
 CAF_Caller_Loc :: enum {
 	normal,
 	space,
+  new_line,
 }
 
 clear_and_append_reference :: proc(state: Tokenizer_State, loc: CAF_Caller_Loc) {
@@ -126,8 +139,9 @@ clear_and_append_reference :: proc(state: Tokenizer_State, loc: CAF_Caller_Loc) 
 
 	switch loc {
 	case .normal:
-		start_pos.x += 1
 	case .space:
+		start_pos.x += 1
+  case .new_line:
 	}
 
 	log.debug("pos buffer", start_pos)
@@ -179,7 +193,7 @@ split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic
 	}
 
 	// something is in the buffer but new line is reached 
-	defer clear_and_append_reference(state, CAF_Caller_Loc.normal)
+	defer clear_and_append_reference(state, CAF_Caller_Loc.new_line)
 
 	for char in s {
 		defer scanner_state.x += 1
