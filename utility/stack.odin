@@ -18,7 +18,7 @@ make_stack :: proc(
 	stack: ^Stack(T),
 	err: mem.Allocator_Error,
 ) {
-	// first item is a dud
+	// first item stores nothing
 	return new(Stack(T), alloc)
 }
 
@@ -26,11 +26,8 @@ stack_push :: proc(
 	stack: ^$L/Stack($T),
 	target: T,
 	alloc := context.allocator,
-) -> (
-	err: mem.Allocator_Error,
-) {
-	new_elem, errn := new_clone(Stack(T){value = target, next = stack.next})
-	err = errn
+) -> mem.Allocator_Error {
+	new_elem, err := new_clone(Stack(T){value = target, next = stack.next})
 	if err != os.ERROR_NONE {
 		return err
 	}
@@ -39,7 +36,7 @@ stack_push :: proc(
 }
 
 
-// pops an item off the stack, if the stack is empty,
+// pops an item off the stack, if the stack is empty, 
 // ok's value will be false, otherwise true
 stack_pop :: proc(stack: ^$L/Stack($T), alloc := context.allocator) -> (result: T, ok := false) {
 	if stack.next == nil {
@@ -54,7 +51,7 @@ stack_pop :: proc(stack: ^$L/Stack($T), alloc := context.allocator) -> (result: 
 	}
 }
 
-// peeks the stack, if the stack is empty,
+// peeks the stack, if the stack is empty, 
 // ok's value will be false, otherwise true
 stack_peek :: proc(stack: ^$L/Stack($T), alloc := context.allocator) -> (result: T, ok := false) {
 	if stack.next != nil {
@@ -81,7 +78,7 @@ print_stack :: proc(stack: ^$L/Stack($T)) {
 	fmt.println()
 }
 
-// calls free() on every node of the stack, then
+// calls free() on every node of the stack, then 
 // freeing itself
 destroy_stack :: proc(stack: ^$L/Stack($T), alloc := context.allocator) {
 	current_node := stack.next
