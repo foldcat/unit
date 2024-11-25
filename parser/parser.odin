@@ -19,11 +19,11 @@ import "core:strings"
 //  position: Position
 // }
 
-Position :: [2]i64
+Position :: [2]u64
 
 Locator :: struct {
-	start: Position,
-	end:   Position,
+	start:  Position,
+	length: u64,
 }
 
 
@@ -113,21 +113,21 @@ parse :: proc(path: string) -> ^Cons {
 
 		line = strings.trim_right(line, "\r")
 
-		log.debugf("current line: %s", line)
+		// log.debugf("current line: %s", line)
 
 		current := split_sexp(line, &scanner_state)
 		defer delete(current)
 
-		log.debug("current splitted line", current)
+		// log.debug("current splitted line", current)
 
 		for item in current {
-			log.debug("appending", item)
+			// log.debug("appending", item)
 			append_soa(&splitted, item)
 		}
 	}
 
-	log.debug("final parsed array:")
-	log.debug(splitted)
+	log.debug("done parsing")
+	// log.debug(splitted)
 
 
 	for raw_item in splitted {

@@ -16,12 +16,12 @@ Cons_Value :: struct {
 }
 
 print_data :: proc(data: Cons_Value) {
-	fmt.println(data.data, "from", data.pos.start, "to", data.pos.end)
+	fmt.println(data.data, "from", data.pos.start, "of length", data.pos.length)
 
 }
 
 print_pos :: proc(s: string, pos: Locator) {
-	fmt.println(s, "from", pos.start, "to", pos.end)
+	fmt.println(s, "from", pos.start, "of length", pos.length)
 }
 
 print_scope :: proc(scope: Scope, pos: Locator) {

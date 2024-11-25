@@ -6,7 +6,11 @@ import "core:strconv"
 import "core:strings"
 import "core:unicode/utf8"
 
-// the below code needs refractoring
+// i am truly baffled by the fact that the tokenizer is 
+// harder to write than the parser
+
+// tracking the start and end of nodes are 
+// not easy
 
 Split_State :: enum {
 	in_str,
@@ -29,32 +33,60 @@ Tokenizer_State :: struct {
 	is_escaped:      bool,
 }
 
+last :: proc(arr: ^#soa[dynamic]$T) -> (last_item: T) {
+  for i in arr {
+    last_item = i
+  }
+  return
+}
+
 make_value_state :: proc(data: Data, state: Tokenizer_State) -> Value {
 	using state
-	return Value {
-		data = data,
-		pos = Locator{start = new_clone(position_buffer^)^, end = new_clone(scanner_state^)^},
+
+	length: u64
+	#partial switch deref_data in data {
+	case Scope:
+		length = 1
+	case String:
+		length = cast(u64)len(state.buffer)
+		length += 2 // account for the two quotation marks
+	case:
+		length = cast(u64)len(state.buffer)
 	}
+
+	if len(state.buffer) == 1 {
+		position_buffer.x -= 1
+	}
+
+	return Value{data = data, pos = Locator{start = new_clone(position_buffer^)^, length = length}}
 
 }
 
 make_value_position :: proc(
 	data: Data,
+	state: Tokenizer_State,
 	position_buffer: ^Position,
-	scanner_state: ^Position,
 ) -> Value {
-	return Value {
-		data = data,
-		pos = Locator{start = new_clone(position_buffer^)^, end = new_clone(scanner_state^)^},
+
+	length: u64
+	#partial switch deref_data in data {
+	case Scope:
+		length = 1
+	case:
+		length = cast(u64)len(state.buffer)
 	}
+
+	if len(state.buffer) == 1 {
+		position_buffer.x -= 1
+	}
+
+	return Value{data = data, pos = Locator{start = new_clone(position_buffer^)^, length = length}}
 }
 
 make_value :: proc {
 	make_value_state,
 	make_value_position,
 }
-
-// could use some parapoly
 
 clear_and_append_string :: proc(state: Tokenizer_State) {
 	using state
@@ -136,11 +168,13 @@ CAF_Caller_Loc :: enum {
 
 clear_and_append_reference :: proc(state: Tokenizer_State, loc: CAF_Caller_Loc) {
 	using state
+
+  // defer log.debug("result:", last(result))
+
 	defer clear(buffer)
 	defer position_buffer.x = scanner_state.x + 1
 
 	start_pos := new_clone(position_buffer)^
-	end_pos := new_clone(scanner_state)^
 
 	switch loc {
 	case .normal:
@@ -149,42 +183,41 @@ clear_and_append_reference :: proc(state: Tokenizer_State, loc: CAF_Caller_Loc) 
 	case .new_line:
 	}
 
-	log.debug("pos buffer", start_pos)
+	// log.debug("pos buffer", start_pos)
 
 	if len(buffer^) != 0 {
-
-		if len(buffer^) > 1 {
-			end_pos.x -= 1
-		}
 
 		str := utf8.runes_to_string(buffer^[:]) // gets freed, i hope
 
 		res, ok := to_number(str)
 		if ok { 	// if it is a number
-			append_soa(result, make_value(res, start_pos, end_pos))
+			append_soa(result, make_value(res, state, start_pos))
 			return
 		}
 
 		res, ok = to_atom(str)
 		if ok {
-			append_soa(result, make_value(res, start_pos, end_pos))
+			start_pos.x -= 1
+			append_soa(result, make_value(res, state, start_pos))
 			return
 		}
 
 		// boolean solution 
 		switch str {
 		case "true":
-			append_soa(result, make_value(Bool{data = true}, start_pos, end_pos))
+			append_soa(result, make_value(Bool{data = true}, state, start_pos))
 		case "false":
-			append_soa(result, make_value(Bool{data = false}, start_pos, end_pos))
+			append_soa(result, make_value(Bool{data = false}, state, start_pos))
 		case:
-			append_soa(result, make_value(Reference{name = str}, start_pos, end_pos))
+			append_soa(result, make_value(Reference{name = str}, state, start_pos))
 		}
-		log.debug(result)
+		// log.debug(result)
 	}
 }
 
 split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic]Value) {
+
+	log.debug("tokenizing", s)
 
 	scanner_state.x = 1
 	pos_buf := Position{1, scanner_state.y}
@@ -197,30 +230,26 @@ split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic
 		is_escaped      = false,
 	}
 
-	// something is in the buffer but new line is reached 
-	defer clear_and_append_reference(state, CAF_Caller_Loc.new_line)
 
-	for char in s {
-		defer scanner_state.x += 1
+	for char, index in s {
+		scanner_state.x = cast(u64)index + 1
+		// log.debug("scanner state", scanner_state)
 
 		switch state.split_state {
 		case Split_State.in_atom:
-			if char == ',' {
-				// comma is ignored
-				continue
-			}
-
 			append_target: Scope
 
 			switch char {
 			case '"':
 				state.split_state = Split_State.in_str
-        continue
+				continue
 			case ';':
 				// comment
+        clear_and_append_reference(state, CAF_Caller_Loc.new_line)
 				return
 			case '\n':
 				// end of line
+        clear_and_append_reference(state, CAF_Caller_Loc.new_line)
 				return
 			case '(':
 				append_target = Scope {
@@ -252,9 +281,9 @@ split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic
 					type      = Scope_Type.Map,
 					is_ending = true,
 				}
-			case ' ':
+			case ' ', ',':
 				// clear and append if it is space
-				log.debug("the buffer", state.buffer)
+				// log.debug("the buffer", state.buffer)
 				clear_and_append_reference(state, CAF_Caller_Loc.space)
 				continue
 			case:
@@ -267,9 +296,11 @@ split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic
 
 			past_pos_buffer := new_clone(state.position_buffer^)
 			past_pos_buffer.x -= 1
+			// past_scanner_state := new_clone(state.scanner_state^)
+			// past_scanner_state.x += 1
 
-			append_soa(&result, make_value(append_target, past_pos_buffer, scanner_state))
-			log.debug("current", result)
+			append_soa(&result, make_value(append_target, state, past_pos_buffer))
+		// log.debug("current", result)
 
 		case Split_State.in_str:
 			// append everything till next "
