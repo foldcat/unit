@@ -34,10 +34,10 @@ Tokenizer_State :: struct {
 }
 
 last :: proc(arr: ^#soa[dynamic]$T) -> (last_item: T) {
-  for i in arr {
-    last_item = i
-  }
-  return
+	for i in arr {
+		last_item = i
+	}
+	return
 }
 
 make_value_state :: proc(data: Data, state: Tokenizer_State) -> Value {
@@ -169,7 +169,7 @@ CAF_Caller_Loc :: enum {
 clear_and_append_reference :: proc(state: Tokenizer_State, loc: CAF_Caller_Loc) {
 	using state
 
-  // defer log.debug("result:", last(result))
+	// defer log.debug("result:", last(result))
 
 	defer clear(buffer)
 	defer position_buffer.x = scanner_state.x + 1
@@ -181,6 +181,7 @@ clear_and_append_reference :: proc(state: Tokenizer_State, loc: CAF_Caller_Loc) 
 	case .space:
 		start_pos.x += 1
 	case .new_line:
+		start_pos.x += 1
 	}
 
 	// log.debug("pos buffer", start_pos)
@@ -245,11 +246,11 @@ split_sexp :: proc(s: string, scanner_state: ^Position) -> (result: #soa[dynamic
 				continue
 			case ';':
 				// comment
-        clear_and_append_reference(state, CAF_Caller_Loc.new_line)
+				clear_and_append_reference(state, CAF_Caller_Loc.new_line)
 				return
 			case '\n':
 				// end of line
-        clear_and_append_reference(state, CAF_Caller_Loc.new_line)
+				clear_and_append_reference(state, CAF_Caller_Loc.new_line)
 				return
 			case '(':
 				append_target = Scope {
