@@ -15,13 +15,17 @@ Cons_Value :: struct {
 	pos:  Locator,
 }
 
-print_data :: proc(data: Cons_Value) {
-	fmt.println(data.data, "from", data.pos.start, "of length", data.pos.length)
 
+print_data :: proc(data: Cons_Value) {
+	fmt.print(data.data, "at")
+	fmt.printf(" %d:%d ", data.pos.start.y, data.pos.start.x)
+	fmt.println("of length", data.pos.length)
 }
 
 print_pos :: proc(s: string, pos: Locator) {
-	fmt.println(s, "from", pos.start, "of length", pos.length)
+	fmt.println(s, "at", pos.start)
+	fmt.printf(" %d:%d ", pos.start.y, pos.start.x)
+	fmt.println("of length", pos.length)
 }
 
 print_scope :: proc(scope: Scope, pos: Locator) {
